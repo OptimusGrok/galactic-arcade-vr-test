@@ -61,12 +61,13 @@ export function detectTier(opt = {}) {
 export function qualityForTier(tier, { mobile = false, powerSave = false } = {}) {
   // t854u / v232: texMax = longest image edge after downsample; cabScale shrinks cabinet canvases;
   // mips off saves ~33% GPU memory; shopCell is the prize-atlas cell (atlas is 16x16 cells).
+  // vrtest-v10 (Chief v256 1a2bc35): high / mobile / powerSave use mid's shopCell/shopLab so the shop prize atlas and labels are not 2K wide.
   if (tier === 'low') return { dpr: 1, refl: 0, bloom: 0, post: false, samples: 0, cabDemos: false, aniso: 1, fps: 30, warm: false, windowQ: 0.28, rtFloat: false, texMax: 384, cabScale: 0.5, mips: false, shopCell: 64, shopLab: 0.5, nbW: 256, nbH: 320, previewDpr: 1, stone: 256 };
   if (tier === 'mid' && powerSave) return { dpr: 1.25, refl: 0.22, bloom: 0.28, post: true, samples: 0, cabDemos: true, aniso: 2, fps: 30, warm: true, windowQ: 0.5, rtFloat: false, texMax: 640, cabScale: 0.75, mips: true, shopCell: 96, shopLab: 0.75, nbW: 384, nbH: 480, previewDpr: 1.25, stone: 512 };
   if (tier === 'mid') return { dpr: 1.5, refl: 0.35, bloom: 0.5, post: true, samples: 0, cabDemos: true, aniso: 4, fps: 60, warm: true, windowQ: 0.75, rtFloat: false, texMax: 768, cabScale: 0.75, mips: true, shopCell: 96, shopLab: 0.75, nbW: 384, nbH: 480, previewDpr: 1.25, stone: 512 };
-  if (powerSave) return { dpr: mobile ? 1.25 : 1.5, refl: mobile ? 0.22 : 0.35, bloom: 0.28, post: true, samples: 0, cabDemos: true, aniso: 4, fps: 30, warm: true, windowQ: 0.75, rtFloat: false, texMax: 768, cabScale: 0.85, mips: true, shopCell: 128, shopLab: 1, nbW: 512, nbH: 640, previewDpr: 1.25, stone: 512 };
-  if (mobile) return { dpr: 1.5, refl: 0.35, bloom: 0.5, post: true, samples: 2, cabDemos: true, aniso: 4, fps: 60, warm: true, windowQ: 0.75, rtFloat: false, texMax: 0, cabScale: 1, mips: true, shopCell: 128, shopLab: 1, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024 };
-  return { dpr: 2, refl: 0.6, bloom: 0.5, post: true, samples: 4, cabDemos: true, aniso: 8, fps: 60, warm: true, windowQ: 1, rtFloat: true, texMax: 0, cabScale: 1, mips: true, shopCell: 128, shopLab: 1, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024 };
+  if (powerSave) return { dpr: mobile ? 1.25 : 1.5, refl: mobile ? 0.22 : 0.35, bloom: 0.28, post: true, samples: 0, cabDemos: true, aniso: 4, fps: 30, warm: true, windowQ: 0.75, rtFloat: false, texMax: 768, cabScale: 0.85, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.25, stone: 512 };
+  if (mobile) return { dpr: 1.5, refl: 0.35, bloom: 0.5, post: true, samples: 2, cabDemos: true, aniso: 4, fps: 60, warm: true, windowQ: 0.75, rtFloat: false, texMax: 0, cabScale: 1, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024 };
+  return { dpr: 2, refl: 0.6, bloom: 0.5, post: true, samples: 4, cabDemos: true, aniso: 8, fps: 60, warm: true, windowQ: 1, rtFloat: true, texMax: 0, cabScale: 1, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024 };
 }
 
 export function tierQuality() {
