@@ -44,10 +44,13 @@ export function initTexLoader(renderer, THREE) {
 
 export function texReady() { return Promise.resolve(_ktxOk); }
 export function ktxSupported() { return _ktxOk; }
-export function loadBakedPoster(THREE, url, opt = {}) {
+// vrtest-v10: a baked poster (Chief v256) has no image file behind it: if its KTX2 transcode fails, `paint` (the canvas painter it was baked
+// from) makes the fallback, so it works offline too (the SW no longer precaches jpg/webp fallbacks).
+export function loadBakedPoster(THREE, url, paint, opt = {}) {
   if (!_ktxOk || !ktx2For(url)) return null;
-  return loadPicture(THREE, url, Object.assign({ mips: false }, opt));
+  return loadPicture(THREE, url, Object.assign({ mips: false, fallback: paint }, opt));
 }
+export function bakedOr(THREE, url, paint, opt) { return loadBakedPoster(THREE, url, paint, opt) || paint(); }
 export function ktxLoader() { return _ktx; }
 
 function isReady(t) {
@@ -159,12 +162,19 @@ export function loadPicture(THREE, url, opt = {}) {
     flagTex(tex, THREE);
     applyWrap(tex, opt);
     const L = ktxGet(); _ktxPend++; ktxStats.loads++;
-    L.load(ktx, loaded => {
+    const fail = typeof location !== 'undefined' && /[?&]ktxfail=1\b/.test(location.search);   // vrtest-v10 test switch: every transcode 'fails'
+    (fail ? (u, ok, p, err) => setTimeout(() => err(new Error('ktxfail')), 50) : L.load.bind(L))(ktx, loaded => {
       ktxDone();
       fillCompressed(tex, loaded, THREE, opt);
       finish(tex);
     }, undefined, () => {
-      ktxDone();
+      ktxDone(); ktxStats.fails = (ktxStats.fails || 0) + 1;
+      if (opt.fallback) {   // vrtest-v10: painted fallback (baked posters), synchronous and offline-safe
+        let imgTex = null; try { imgTex = opt.fallback(); } catch (e) {}
+        if (imgTex) { imgTex.wrapS = tex.wrapS; imgTex.wrapT = tex.wrapT; imgTex.repeat.copy(tex.repeat); imgTex.offset.copy(tex.offset);   // keep what callers set on the stub
+          if (!opt.noShare) shared.set(key, imgTex); retargetMaps(tex, imgTex); try { streamRetarget(tex, imgTex); } catch (e) {}
+          imgTex._gaWait = tex._gaWait || []; tex._gaWait = []; finish(imgTex); }
+        console.warn('KTX2 failed, painted fallback', url); return; }
       const fb = new THREE.TextureLoader().load(url, imgTex => {
         applyFlags(imgTex, THREE, opt);
         applyWrap(imgTex, opt);

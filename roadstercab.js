@@ -7,8 +7,8 @@ import { cabWH, flagTex, finishCanvasTex, capLoadedTexture, capCabSideTexture } 
 import { loadPicture, loadBakedPoster } from './texload.js';
 export const MR = { W: 5.0, DEP: 4.0, HT: 3.1 };
 const load = (u) => loadPicture(THREE, u, { side: /_side\./.test(u) });
-function marqueeTex() {
-  const baked = loadBakedPoster(THREE, 'tex/marquee_roadsterCabinet_1024x140.png');
+function marqueeTex(noBake) {
+  const baked = !noBake && loadBakedPoster(THREE, 'tex/marquee_roadsterCabinet_1024x140.png', () => marqueeTex(true));
   if (baked) return baked;
   const c = document.createElement('canvas'); { const sz = cabWH(1024, 140); c.width = sz[0]; c.height = sz[1]; } const g = c.getContext('2d'); if (c.width !== 1024 || c.height !== 140) g.scale(c.width / 1024, c.height / 140); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; finishCanvasTex(t, THREE);
   const bg = new Image(); const draw = () => {

@@ -5,7 +5,7 @@ import { loadPicture, ktx2For, ktxSupported } from './texload.js';
 //
 const rnd = (s => () => (s = (s * 16807) % 2147483647) / 2147483647)(230);
 
-export function stoneWallTex(THREE, renderer) {
+export function stoneWallTex(THREE, renderer, noBake) {
   const apply = t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     flagTex(t, THREE);
@@ -13,9 +13,9 @@ export function stoneWallTex(THREE, renderer) {
     return t;
   };
   // t930u: prefer the baked KTX2 (ASTC, with mips). Fallback paints the same procedural canvas.
-  if (ktxSupported() && ktx2For('tex/stone_wall.png') && (tierQuality().stone || 1024) >= 512) {
+  if (!noBake && ktxSupported() && ktx2For('tex/stone_wall.png') && (tierQuality().stone || 1024) >= 512) {
     const t = loadPicture(THREE, 'tex/stone_wall.png', {
-      wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping,
+      wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, fallback: () => stoneWallTex(THREE, renderer, true),   // vrtest-v10: painted, offline-safe
       onLoad: tex => { apply(tex); try { renderer.initTexture(tex); } catch (e) {} }
     });
     return apply(t);

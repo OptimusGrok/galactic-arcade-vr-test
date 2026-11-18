@@ -72,8 +72,8 @@ export function sideTexture(flip) {
     const v = g.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.75); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = v; g.fillRect(0, 0, w, h);
   }); return capCabSideTexture(t, THREE);
 }
-export function marqueeTexture() {
-  const baked = loadBakedPoster(THREE, 'tex/marquee_strikeCabinet_1024x256.png');
+export function marqueeTexture(noBake) {
+  const baked = !noBake && loadBakedPoster(THREE, 'tex/marquee_strikeCabinet_1024x256.png', () => marqueeTexture(true));
   if (baked) return baked;
   return tex(1024, 256, (g, w, h) => {
     spaceBg(g, w, h); stars(g, w, h, 120); streaks(g, w, h, 40, -0.1);

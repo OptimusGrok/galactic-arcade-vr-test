@@ -746,13 +746,7 @@ export function buildNeonSigns(THREE, mergeGeometries, list, opt = {}) {
     const { iw, ih, ip, n } = clawPending._claw;
     const N = 10, S = 256, period = 3.6;
     let ctex;
-    if (ktxSupported() && ktx2For('tex/claw_icon_strip.png')) {
-      ctex = loadPicture(THREE, 'tex/claw_icon_strip.png', {
-        mips: false, wrapS: THREE.ClampToEdgeWrapping, wrapT: THREE.ClampToEdgeWrapping,
-        repeat: { x: 1 / N, y: 1 },
-        onLoad: t => { try { if (opt.renderer) opt.renderer.initTexture(t); } catch (e) {} }
-      });
-    } else {
+    const paintStrip = () => {
       const strip = document.createElement('canvas'); strip.width = S * N; strip.height = S;
       const sg = strip.getContext('2d');
       for (let i = 0; i < N; i++) {
@@ -762,9 +756,16 @@ export function buildNeonSigns(THREE, mergeGeometries, list, opt = {}) {
         drawClawIcon(tctx, S, i / (N - 1));
         sg.drawImage(t, i * S, 0);
       }
-      ctex = new THREE.CanvasTexture(strip);
-      finishCanvasTex(ctex, THREE);
-    }
+      const t = new THREE.CanvasTexture(strip);
+      finishCanvasTex(t, THREE); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.set(1 / N, 1); return t; };
+    if (ktxSupported() && ktx2For('tex/claw_icon_strip.png')) {
+      // vrtest-v10: the painted strip is also the offline-safe fallback if the KTX2 transcode fails (the claw tick follows ctex: see claw.material.map below)
+      ctex = loadPicture(THREE, 'tex/claw_icon_strip.png', {
+        mips: false, wrapS: THREE.ClampToEdgeWrapping, wrapT: THREE.ClampToEdgeWrapping,
+        repeat: { x: 1 / N, y: 1 }, fallback: paintStrip,
+        onLoad: t => { try { if (opt.renderer) opt.renderer.initTexture(t); } catch (e) {} }
+      });
+    } else ctex = paintStrip();
     ctex.colorSpace = THREE.SRGBColorSpace; ctex.anisotropy = opt.aniso || 4;
     ctex.wrapS = THREE.ClampToEdgeWrapping; ctex.wrapT = THREE.ClampToEdgeWrapping;
     ctex.repeat.set(1 / N, 1); ctex.offset.set(0, 0); if (!ctex.isCompressedTexture) ctex.needsUpdate = true;   // vrtest-v10: never flag the KTX2 stub (no mip data yet: three's upload threw on mipmaps[0].width)
@@ -787,7 +788,7 @@ export function buildNeonSigns(THREE, mergeGeometries, list, opt = {}) {
       const phase = ((t / period) % 1 + 1) % 1;
       const open = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
       const f = Math.min(N - 1, Math.max(0, Math.round(open * (N - 1))));
-      if (f !== claw.userData.frame) { ctex.offset.x = f / N; }   // vrtest-v10: offset is a uniform (uvTransform); no texture re-upload per frame
+      if (f !== claw.userData.frame) { const mp = claw.material.map || ctex; mp.offset.x = f / N; }   // vrtest-v10: offset is a uniform (uvTransform); no texture re-upload per frame
       claw.userData.open = open; claw.userData.frame = f; claw.userData.phase = phase;
     }
     tickClaw(0);

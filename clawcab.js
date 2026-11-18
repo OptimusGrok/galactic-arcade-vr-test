@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { cabWH, flagTex, finishCanvasTex, capLoadedTexture } from './tier.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { loadBakedPoster } from './texload.js';
+import { bakedOr } from './texload.js';
 // health fix: bake a static group into one mesh per material (same look, far fewer draw calls)
 function bake(grp) { grp.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(grp.matrixWorld).invert(), by = new Map();
   grp.traverse(o => { if (!o.isMesh) return; const gm = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); gm.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)); for (const k of Object.keys(gm.attributes)) if (!/^(position|normal|uv)$/.test(k)) gm.deleteAttribute(k); (by.get(o.material) || by.set(o.material, []).get(o.material)).push(gm); });
@@ -65,8 +65,8 @@ export function buildClawCabinet() {
     fitText(c, '1 TICKET', w, h, { name: 'price', px: 84, weight: '900', family: 'Arial Black, Arial, sans-serif', glow: '#ffb020', blur: 18, color: '#ffe14a', aspect: 0.62 / 0.194, mx: 0.07, my: 0.18, dy: 3 }); });
   add(new THREE.PlaneGeometry(0.62, 0.194), new THREE.MeshStandardMaterial({ map: price, emissive: 0xffffff, emissiveMap: price, emissiveIntensity: 0.8, roughness: 0.4 }), 'priceTag', [0.2, BASE_H - 0.2, D / 2 + 0.003]);
   add(new THREE.PlaneGeometry(0.34, 0.26), new THREE.MeshStandardMaterial({ color: 0x1a0a2a, roughness: 0.5, metalness: 0.3 }), 'prizeDoor', [-W / 2 + 0.24, BASE_H - 0.3, D / 2 + 0.003]);
-  const marq = loadBakedPoster(THREE, 'tex/marquee_clawCabinet_1024x220.png') || canvasTex(1024, 220, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2a0f4f'); gr.addColorStop(1, '#14062a'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
-    fitText(c, 'CLAW MACHINE', w, h, { name: 'marquee', px: 120, weight: '900', family: 'system-ui, Arial Black, sans-serif', glow: '#ff2bd6', blur: 26, color: '#ff4fe0', aspect: (CLAW.W - 0.08) / (CLAW.TOP_H - 0.06), mx: 0.07, my: 0.16, dy: 4 }); });
+  const marq = bakedOr(THREE, 'tex/marquee_clawCabinet_1024x220.png', () => canvasTex(1024, 220, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2a0f4f'); gr.addColorStop(1, '#14062a'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    fitText(c, 'CLAW MACHINE', w, h, { name: 'marquee', px: 120, weight: '900', family: 'system-ui, Arial Black, sans-serif', glow: '#ff2bd6', blur: 26, color: '#ff4fe0', aspect: (CLAW.W - 0.08) / (CLAW.TOP_H - 0.06), mx: 0.07, my: 0.16, dy: 4 }); }));
   add(new THREE.PlaneGeometry(W - 0.08, TOP_H - 0.06), new THREE.MeshStandardMaterial({ map: marq, emissive: 0xffffff, emissiveMap: marq, emissiveIntensity: 0.9, roughness: 0.3 }), 'marquee', [0, y1 + TOP_H / 2, D / 2 + 0.003]);
   // neon edge glow only (corner verticals, top + bottom rims): one merged tube set
   const neon = new THREE.MeshBasicMaterial({ color: 0xff3fd8, toneMapped: false }), tubes = new THREE.Group(); tubes.name = 'edgeGlow'; g.add(tubes);

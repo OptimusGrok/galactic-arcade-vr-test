@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { cabWH, flagTex, finishCanvasTex, capLoadedTexture } from './tier.js';
 import { SPROFILE, SW, segFrame, segPlane, bar, sideGeo, mergeGeos } from './strikecab.js';
-import { loadBakedPoster } from './texload.js';
+import { bakedOr } from './texload.js';
 const canvasTex = (w, h, paint, flip) => { const c = document.createElement('canvas'); { const sz = cabWH(w, h); c.width = sz[0]; c.height = sz[1]; w = c.width; h = c.height; } paint(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   if (flip) { t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.offset.x = 1; } finishCanvasTex(t, THREE); return t; };
 // 12x12 pixel sprites
@@ -67,7 +67,7 @@ export function buildBBCabinet() {
   add(sideGeo(1), sideMat, 'sidePanelL'); add(sideGeo(-1), sideMat, 'sidePanelR');
   const tm = []; for (const z of [-SW / 2 - 0.008, SW / 2 + 0.008]) for (let i = 1; i < SPROFILE.length - 1; i++) { const a = SPROFILE[i], b = SPROFILE[i + 1]; tm.push(bar(new THREE.Vector3(a[0], a[1], z), new THREE.Vector3(b[0], b[1], z), 0.03)); }
   add(mergeGeos(tm), body, 'trim');   // dark edge trim (no neon on the body)
-  const mq = loadBakedPoster(THREE, 'tex/marquee_bbCabinet_1024x300.png') || canvasTex(1024, 300, paintMarquee);
+  const mq = bakedOr(THREE, 'tex/marquee_bbCabinet_1024x300.png', () => canvasTex(1024, 300, paintMarquee));
   add(segPlane(SPROFILE[7], SPROFILE[8], SW - 0.06, 0.004, 0.86), new THREE.MeshStandardMaterial({ map: mq, emissive: 0xffffff, emissiveMap: mq, emissiveIntensity: 0.6, roughness: 0.3 }), 'marquee');
   add(segPlane(SPROFILE[5], SPROFILE[6], SW - 0.04, 0.003), new THREE.MeshStandardMaterial({ color: 0x08060c, roughness: 0.35, metalness: 0.3 }), 'bezel');
   const sf = segFrame(SPROFILE[5], SPROFILE[6]), sh = sf.L * 0.84, sw = Math.min(SW - 0.14, sh * 4 / 5);

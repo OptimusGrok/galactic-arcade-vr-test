@@ -32,8 +32,8 @@ export function ghostSideTexture(flip) {
     g.restore();
   }, true); capCabSideTexture(t, THREE); return t;
 }
-export function ghostMarqueeTexture() {
-  const baked = loadBakedPoster(THREE, 'tex/marquee_ghostCabinet_512x160.png');
+export function ghostMarqueeTexture(noBake) {
+  const baked = !noBake && loadBakedPoster(THREE, 'tex/marquee_ghostCabinet_512x160.png', () => ghostMarqueeTexture(true));
   if (baked) return baked;
   return tex(512, 160, (g, w, h) => {
     g.fillStyle = '#0d0a14'; g.fillRect(0, 0, w, h); glitch(g, w, h, 0, 40);
