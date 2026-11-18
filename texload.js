@@ -30,6 +30,8 @@ export function ktx2For(url) {
 }
 
 export function initTexLoader(renderer, THREE) {
+  // vrtest-v10: ?noktx=1 forces the image / canvas fallbacks (test/ktx2_posters.js compares the baked posters with their paint)
+  if (typeof location !== 'undefined' && /[?&]noktx=1\b/.test(location.search)) { _ktxOk = false; return false; }
   try {
     _ktxR = renderer; _ktx = newKtx();
     const cfg = (_ktx && _ktx.workerConfig) || {};
