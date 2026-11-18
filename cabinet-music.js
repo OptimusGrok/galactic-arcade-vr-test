@@ -3,8 +3,9 @@
 //   * walk mode: the nearest cabinet within RADIUS of the monkey plays its loop; the room track ducks (via __cabMusic.duck)
 //   * cabinet DEMO view (play.mode 'game', sub 'demo'): that cabinet's loop plays (the game copies' demos are silent)
 //   * playing a game, zooming, start screen, tab hidden, MUSIC off (window.__music.on === false): silent
-// Crossfade: WebAudio linear ramps of FADE s. Only one cabinet source exists at a time (the old one fades out and is stopped
-// before the next fades in). Tracks are fetched + decoded on first need (lazy); at most one decoded buffer is kept (MAX_CACHE = 1, t911u).
+// Crossfade (vrtest-v10, Chief's test-v5 fix 346a85b): the next track is fetched + decoded FIRST, then both ramps overlap for FADE s, so a
+// walk-up never goes silent and never restarts mid-note; the outgoing buffer is freed after its fade (one decoded song once settled, t911u).
+// Picking sticks to the current cabinet while you are still in its range (no retrigger walking a tight row) with a 1.4 s minimum play time.
 // Room music hook: music.js multiplies its target by (1 - window.__cabMusic.duck)  (see INTEGRATION.md).
 (function () {
   var VOL = 0.38, FADE = 0.6, RADIUS = 2.8, HYST = 0.5, MAX_CACHE = 1,   // TEST v1 (VR memory): only the current loop stays decoded (was 3)
@@ -28,31 +29,62 @@
   };
   var C = window.__cabMusic = { tracks: TRACKS, want: null, cur: null, duck: 0, fades: 0, loads: 0, starts: 0, maxSources: 0, radius: RADIUS, err: null };
   var ac = null, out = null, node = null, ng = null, curKey = null, cache = {}, order = [], pending = {}, pos = null, lastNear = null, live = 0;
-  function ctx() { if (!ac) { ac = window.__unlockAC || new (window.AudioContext || window.webkitAudioContext)(); window.__unlockAC = ac; out = ac.createGain(); out.gain.value = 1; out.connect(ac.destination); } return ac; }
+  var pendingKey = null, switchId = 0, holdUntil = 0, HOLD = 1400, STICK = 0.7;
+  function ctx() { if (!ac) { ac = window.__unlockAC || new (window.AudioContext || window.webkitAudioContext)(); window.__unlockAC = ac; if (ac.state === 'suspended') ac.resume(); out = ac.createGain(); out.gain.value = 1; out.connect(ac.destination); }
+    else if (!out) { out = ac.createGain(); out.gain.value = 1; out.connect(ac.destination); } return ac; }
+  function remember(k, buf) {
+    cache[k] = buf; if (order.indexOf(k) < 0) order.push(k);
+    // keep the playing and incoming buffers; evict everything else so we stay at one song after handover
+    var keep = {}; keep[curKey] = 1; keep[C.want] = 1; keep[pendingKey] = 1; keep[k] = 1; var next = [];
+    for (var i = 0; i < order.length; i++) { var o = order[i]; if (keep[o] && next.indexOf(o) < 0) next.push(o); else if (!keep[o]) { delete cache[o]; C.drops = (C.drops || 0) + 1; } }
+    order = next;
+  }
+  function evictKey(k) {
+    if (!k || k === curKey || k === C.want || k === pendingKey || !cache[k]) return;
+    delete cache[k]; var i = order.indexOf(k); if (i >= 0) order.splice(i, 1); C.drops = (C.drops || 0) + 1;
+  }
   function load(k) {
     if (cache[k]) return Promise.resolve(cache[k]); if (pending[k]) return pending[k]; var t = TRACKS[k]; if (!t) return Promise.reject('no track ' + k);
     C.loads++;
-    return pending[k] = fetch(BASE + t.src).then(function (r) { return r.arrayBuffer(); }).then(function (b) { return new Promise(function (ok, no) { ctx().decodeAudioData(b, ok, no); }); })
-      .then(function (buf) { delete pending[k]; cache[k] = buf; order.push(k); while (order.length > MAX_CACHE) { var o = order.shift(); if (o !== curKey && o !== C.want) delete cache[o]; else order.push(o); if (order.length <= MAX_CACHE) break; } return buf; })
-      .catch(function (e) { delete pending[k]; C.err = String(e); throw e; });
+    return pending[k] = fetch(BASE + t.src).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + t.src); return r.arrayBuffer(); })
+      .then(function (b) { return new Promise(function (ok, no) { ctx().decodeAudioData(b, ok, no); }); })
+      .then(function (buf) { delete pending[k]; remember(k, buf); return buf; })
+      .catch(function (e) { delete pending[k]; C.err = String(e && e.message || e); throw e; });
   }
-  function fadeOut() { if (!node) return; var n = node, g = ng, t = ac.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + FADE);
-    C.fades++; setTimeout(function () { try { n.stop(); } catch (e) {} n.disconnect(); g.disconnect(); live--; }, FADE * 1000 + 30); node = null; ng = null; curKey = null; C.cur = null; }
+  function fadeOutNode(n, g, oldKey) {
+    if (!n || !g) return;
+    var t = ctx().currentTime; try { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + FADE); } catch (e) {}
+    C.fades++;
+    setTimeout(function () { try { n.stop(); } catch (e) {} try { n.disconnect(); g.disconnect(); } catch (e) {} live = Math.max(0, live - 1); evictKey(oldKey); }, FADE * 1000 + 40);
+  }
+  function fadeOut() {
+    if (!node) { curKey = null; C.cur = null; return; }
+    var n = node, g = ng, oldKey = curKey; node = null; ng = null; curKey = null; C.cur = null;
+    fadeOutNode(n, g, oldKey);
+  }
   function fadeIn(k, buf) {
     var t = TRACKS[k], a = ctx(), n = a.createBufferSource(), g = a.createGain(); n.buffer = buf; n.loop = true;
     if (t.samples) { var len = t.samples * buf.sampleRate / t.rate, extra = buf.length - len, lead = extra >= 1105 ? Math.min(extra, 1105) : 0;   // 529+576 (mp3 priming)
-      n.loopStart = lead / buf.sampleRate; n.loopEnd = n.loopStart + len / buf.sampleRate; }
-    g.gain.value = 0; n.connect(g); g.connect(out); n.start(0, n.loopStart || 0); var now = a.currentTime; g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(t.vol || VOL, now + FADE);
+      var start = lead / buf.sampleRate, end = start + len / buf.sampleRate;
+      if (end > 0 && end <= buf.duration + 1e-4) { n.loopStart = start; n.loopEnd = Math.min(end, buf.duration); } }   // never a loop end past the buffer
+    g.gain.value = 0; n.connect(g); g.connect(out);
+    if (a.state === 'suspended') a.resume();
+    n.start(0, n.loopStart || 0); var now = a.currentTime; g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(t.vol || VOL, now + FADE);
     node = n; ng = g; curKey = k; C.cur = k; C.starts++; C.fades++; live++; C.maxSources = Math.max(C.maxSources, live);
   }
-  var busyUntil = 0;
   function apply(k) {
-    if (k === curKey) return; var now = performance.now();
-    if (node) { var old = curKey; fadeOut(); busyUntil = now + FADE * 1000 + 40;
-      setTimeout(function () { if (old && old !== curKey && old !== C.want) { delete cache[old]; order = order.filter(function (o) { return o !== old; }); C.drops = (C.drops || 0) + 1; } }, FADE * 1000 + 80); }
-    if (!k) return;
-    load(k).then(function (buf) { var wait = Math.max(0, busyUntil - performance.now());
-      setTimeout(function () { if (C.want === k && !node) { if (ac.state === 'suspended') ac.resume(); fadeIn(k, buf); } }, wait); }).catch(function () {});
+    if (k && k === curKey && node) { pendingKey = null; return; }
+    if (k && k === pendingKey) return;
+    if (!k) { pendingKey = null; switchId++; if (node) fadeOut(); return; }
+    pendingKey = k; var id = ++switchId;
+    load(k).then(function (buf) {
+      if (id !== switchId || C.want !== k) return;
+      if (k === curKey && node) { pendingKey = null; return; }
+      var oldN = node, oldG = ng, oldKey = curKey;
+      node = null; ng = null;   // fadeIn assigns the new source; the old one fades out in parallel (no silent gap)
+      fadeIn(k, buf); pendingKey = null;
+      if (oldN) fadeOutNode(oldN, oldG, oldKey);
+    }).catch(function () { if (id === switchId) pendingKey = null; });
   }
   // cabinet positions (stand-in-front point) per play.js machine key; cabinets never move, so this is built once
   function positions(A) {
@@ -70,7 +102,10 @@
   var fx = 0, fz = 0;
   function dist(p, x, z) { var dx = x - p.x, dz = z - p.z, d; if (!p.nx && !p.nz) d = Math.hypot(dx, dz); else { var along = dx * p.nx + dz * p.nz, side = dx * p.nz - dz * p.nx; d = Math.hypot(side * 1.8, along); }
     if (fx || fz) { var cx = p.x - (p.nx || 0) * 1.2 - x, cz = p.z - (p.nz || 0) * 1.2 - z, L = Math.hypot(cx, cz) || 1; d *= 1.25 - 0.25 * ((cx * fx + cz * fz) / L); } return d; }
-  C.nearest = function (x, z, yaw) { if (yaw != null) { fx = -Math.sin(yaw); fz = -Math.cos(yaw); } else fx = fz = 0; var best = null, bd = Infinity; (pos || []).forEach(function (p) { var d = dist(p, x, z); if (d < bd) { bd = d; best = p.k; } });
+  C.nearest = function (x, z, yaw) { if (yaw != null) { fx = -Math.sin(yaw); fz = -Math.cos(yaw); } else fx = fz = 0; var best = null, bd = Infinity, lastD = Infinity;
+    (pos || []).forEach(function (p) { var d = dist(p, x, z); if (d < bd) { bd = d; best = p.k; } if (lastNear && p.k === lastNear && d < lastD) lastD = d; });
+    // vrtest-v10 (346a85b): stay on the current cabinet while still inside its radius + hysteresis, unless another is clearly (STICK m) nearer
+    if (lastNear && lastD <= RADIUS + HYST) { if (best && best !== lastNear && bd < lastD - STICK) return best; return lastNear; }
     var r = RADIUS + (best && best === lastNear ? HYST : 0); return bd <= r ? best : null; };
   function wanted() {
     var A = window.__arcade, S = window.__start, M = window.__music;
@@ -78,12 +113,17 @@
     var P = A.play;
     if (P.mode === 'game') return P.sub === 'demo' && P.cur && TRACKS[P.cur.key] ? P.cur.key : null;
     if (P.mode !== 'walk' || !positions(A)) return null;
-    var m = A.monkey.position, k = C.nearest(m.x, m.z, A.st && typeof A.st.yaw === 'number' ? A.st.yaw : null); lastNear = k; return k;
+    var m = A.monkey.position, yaw = A.st && typeof A.st.yaw === 'number' ? A.st.yaw : null, k = C.nearest(m.x, m.z, yaw), now = performance.now();
+    if (k && lastNear && k !== lastNear && now < holdUntil) {   // 346a85b: minimum play time, unless you have left the last cabinet's range
+      var stay = Infinity; (pos || []).forEach(function (p) { if (p.k === lastNear) stay = Math.min(stay, dist(p, m.x, m.z)); });
+      if (stay <= RADIUS + HYST) k = lastNear; }
+    if (k && k !== lastNear) holdUntil = now + HOLD;
+    lastNear = k; return k;
   }
   // vrtest-v4 (t911u port): one song at a time. Besides the drop when a loop fades out (above), anything still cached is freed once no
   // cabinet has wanted music for 1 s (a decode that finished after you walked on), so at most one cabinet AudioBuffer stays decoded.
   var idleSince = 0;
-  function evictIdle() { Object.keys(cache).forEach(function (key) { if (key !== curKey && key !== C.want) { delete cache[key]; order = order.filter(function (o) { return o !== key; }); } }); }
+  function evictIdle() { Object.keys(cache).forEach(function (key) { evictKey(key); }); if (!curKey && !C.want && !pendingKey) { cache = {}; order = []; } }
   function tick() {
     var k = null; try { k = wanted(); } catch (e) { C.err = String(e); }
     C.want = k; apply(k);
