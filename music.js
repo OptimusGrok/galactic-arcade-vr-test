@@ -4,13 +4,13 @@
 // is off in Options ('neonarcade.music' = '0').
 // Memory (TEST v1 + vrtest-v4 port of the Chief's t911u "one song at a time"): the decoded loop is ~13 MB of float PCM at 48 kHz (mono since v10; was ~26 MB stereo). It is kept only
 // while it can be heard: once the room track is silent (a cabinet loop has fully ducked it, a game, the NK studio, MUSIC off, hidden
-// tab) for HOLD (1 s; window.__gaMusicHold overrides) and its gain has faded out, the decoded buffer is dropped. The compact fetched file
-// (~0.45 MB since v10) is kept, so coming back re-decodes it off the main thread (decodeAudioData) without a re-fetch, from the loop start.
+// tab) for HOLD (1 s; window.__gaMusicHold overrides) and its gain has faded out, the decoded buffer is dropped. Since vrtest-v10 the compressed file is not kept either
+// (Chief 0997b20): coming back re-fetches it (SW / HTTP cache) and re-decodes off the main thread (decodeAudioData), from the loop start.
 (function () {
   var N = 1612800, SR = 22050, VOL = 0.42, KEY = 'neonarcade.music', HOLD = 1000;
   var M = window.__music = { loaded: false, playing: false, gain: 0, target: 0, on: true, loopStart: 0, loopEnd: 0, len: 0, src: '', hasBuf: false, rawBytes: 0, freed: 0, decodes: 0 };
   try { M.on = localStorage.getItem(KEY) !== '0'; } catch (e) {}
-  var ac = null, g = null, node = null, loading = false, raw = null, silentSince = 0, gen = 0;
+  var ac = null, g = null, node = null, loading = false, silentSince = 0, gen = 0;
   M.drops = 0; M.loads = 0; M.decodedMB = 0;
   function pickSrc() { return 'audio/neon_nights.m4a'; }   // vrtest-v10 (Chief v256): one format (mono AAC); the stereo opus copy is gone
   function ctx() { if (!ac) { ac = window.__unlockAC || new (window.AudioContext || window.webkitAudioContext)(); window.__unlockAC = ac; } return ac; }
@@ -26,9 +26,10 @@
   }
   function load() { if (loading) return; loading = true; M.loads++; ctx(); var my = ++gen;
     if (!g) { g = ac.createGain(); g.gain.value = 0; g.connect(ac.destination); }
-    var decode = function (ab) { raw = ab; M.rawBytes = ab.byteLength;
-      return new Promise(function (ok, no) { ac.decodeAudioData(ab.slice(0), ok, no); }).then(function (buf) { loading = false; if (my !== gen) return; start(buf); }); };
-    var p = raw ? decode(raw) : (M.src = pickSrc(), fetch(M.src).then(function (r) { return r.arrayBuffer(); }).then(decode));
+    // vrtest-v10 (Chief v256 0997b20): the compressed copy is not kept after decode (a later load re-fetches; SW / HTTP cache)
+    var decode = function (ab) { M.rawBytes = ab.byteLength;
+      return new Promise(function (ok, no) { ac.decodeAudioData(ab, ok, no); }).then(function (buf) { M.rawBytes = 0; loading = false; if (my !== gen) return; start(buf); }); };
+    var p = (M.src = pickSrc(), fetch(M.src).then(function (r) { return r.arrayBuffer(); }).then(decode));
     p.catch(function (e) { M.err = String(e); loading = false; });
   }
   function drop() { gen++; try { if (node) { node.stop(); node.disconnect(); } } catch (e) {} node = null; loading = false;

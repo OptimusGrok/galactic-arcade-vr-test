@@ -68,7 +68,8 @@ export function qualityForTier(tier, { mobile = false, powerSave = false } = {})
   if (tier === 'mid') return { dpr: 1.5, refl: 0.35, bloom: 0.5, post: true, samples: 0, cabDemos: true, aniso: 4, fps: 60, warm: true, windowQ: 0.75, rtFloat: false, texMax: 768, cabScale: 0.75, mips: true, shopCell: 96, shopLab: 0.75, nbW: 384, nbH: 480, previewDpr: 1.25, stone: 512, posterScale: 0.75, posterMax: 768 };
   if (powerSave) return { dpr: mobile ? 1.25 : 1.5, refl: mobile ? 0.22 : 0.35, bloom: 0.28, post: true, samples: 0, cabDemos: true, aniso: 4, fps: 30, warm: true, windowQ: 0.75, rtFloat: false, texMax: 768, cabScale: 0.85, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.25, stone: 512, posterScale: 0.75, posterMax: 768 };
   if (mobile) return { dpr: 1.5, refl: 0.35, bloom: 0.5, post: true, samples: 2, cabDemos: true, aniso: 4, fps: 60, warm: true, windowQ: 0.75, rtFloat: false, texMax: 0, cabScale: 1, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024, posterScale: 0.75, posterMax: 768 };
-  return { dpr: 2, refl: 0.6, bloom: 0.5, post: true, samples: 4, cabDemos: true, aniso: 8, fps: 60, warm: true, windowQ: 1, rtFloat: true, texMax: 0, cabScale: 1, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024, posterScale: 0.75, posterMax: 768 };
+  // vrtest-v10 (Chief 1a9fabe): 8-bit composer targets on high too (rtFloat false); samples / refl / bloom (tier effects) left as they were
+  return { dpr: 2, refl: 0.6, bloom: 0.5, post: true, samples: 4, cabDemos: true, aniso: 8, fps: 60, warm: true, windowQ: 1, rtFloat: false, texMax: 0, cabScale: 1, mips: true, shopCell: 96, shopLab: 0.75, nbW: 512, nbH: 640, previewDpr: 1.5, stone: 1024, posterScale: 0.75, posterMax: 768 };
 }
 
 export function tierQuality() {
