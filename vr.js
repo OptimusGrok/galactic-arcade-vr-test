@@ -760,7 +760,8 @@ export function setupVR(A) {
     } catch (e) { S.lastError = 'icons ' + e; IC.done = true; } });
     clawFix(); }
   function clawFix() { const claw = window.__neonClawIcon; if (!claw || !claw.material || !claw.material.map || IC.claw) return;
-    const ot = claw.material.map, src = ot.image; if (!src || !src.width) return;
+    const ot = claw.material.map, src = ot.image; if (ot.isCompressedTexture) { IC.claw = 'ktx2'; return; }   // vrtest-v10: baked KTX2 strip (Chief v256) is already compact; nothing to redraw
+    if (!src || !src.width) return;
     const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 256; cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height);
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ot.anisotropy || 4; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
     t.repeat.copy(ot.repeat); t.offset = ot.offset;   // shared Vector2: neonsigns.js's tick moves the frame, nothing is re-uploaded
