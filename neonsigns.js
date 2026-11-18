@@ -767,7 +767,7 @@ export function buildNeonSigns(THREE, mergeGeometries, list, opt = {}) {
     }
     ctex.colorSpace = THREE.SRGBColorSpace; ctex.anisotropy = opt.aniso || 4;
     ctex.wrapS = THREE.ClampToEdgeWrapping; ctex.wrapT = THREE.ClampToEdgeWrapping;
-    ctex.repeat.set(1 / N, 1); ctex.offset.set(0, 0); ctex.needsUpdate = true;
+    ctex.repeat.set(1 / N, 1); ctex.offset.set(0, 0); if (!ctex.isCompressedTexture) ctex.needsUpdate = true;   // vrtest-v10: never flag the KTX2 stub (no mip data yet: three's upload threw on mipmaps[0].width)
     try { if (opt.renderer) opt.renderer.initTexture(ctex); } catch (err) {}
     const yaw = Math.atan2(n.x, n.z);
     const mk = back => {
@@ -787,7 +787,7 @@ export function buildNeonSigns(THREE, mergeGeometries, list, opt = {}) {
       const phase = ((t / period) % 1 + 1) % 1;
       const open = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
       const f = Math.min(N - 1, Math.max(0, Math.round(open * (N - 1))));
-      if (f !== claw.userData.frame) { ctex.offset.x = f / N; ctex.needsUpdate = true; }
+      if (f !== claw.userData.frame) { ctex.offset.x = f / N; }   // vrtest-v10: offset is a uniform (uvTransform); no texture re-upload per frame
       claw.userData.open = open; claw.userData.frame = f; claw.userData.phase = phase;
     }
     tickClaw(0);
