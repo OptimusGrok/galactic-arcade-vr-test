@@ -1270,6 +1270,16 @@ export function setupVR(A) {
       finally { for (const o of on) o.layers.disable(30); for (const o of lit) o.layers.disable(30); renderer.setScissorTest(st0); renderer.setScissor(_sc); renderer.setViewport(_vp); renderer.setRenderTarget(prev); renderer.autoClear = ac; if (undoG) undoG(); } }); }
     finally { renderer.xr.enabled = xe; }
     return i + n; }
+  const GEO = { seen: new WeakSet(), mat: null };
+  function geoChunk(objs) { if (!GEO.mat) GEO.mat = new THREE.RawShaderMaterial({ vertexShader: 'attribute vec3 position; uniform mat4 modelViewMatrix, projectionMatrix; void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'precision lowp float; void main() { gl_FragColor = vec4(0.0); }' });
+    const xe = renderer.xr.enabled, st0 = renderer.getScissorTest(), prev = renderer.getRenderTarget(), ac = renderer.autoClear, ov = scene.overrideMaterial, shown = [], on = [], fc = [];
+    renderer.xr.enabled = false; renderer.getViewport(_vp); renderer.getScissor(_sc);
+    try { for (const o of objs) { let p = o; while (p) { if (!p.visible) { p.visible = true; shown.push(p); } p = p.parent; } if (!o.layers.isEnabled(30)) { o.layers.enable(30); on.push(o); } if (o.frustumCulled) { o.frustumCulled = false; fc.push(o); } }
+      _wc.position.copy(camera.position); _wc.rotation.set(-0.15, 0, 0, 'YXZ'); _wc.updateMatrixWorld(true); _wc.layers.set(30); scene.overrideMaterial = GEO.mat;
+      renderer.setRenderTarget(null); renderer.autoClear = false; renderer.setViewport(0, 0, 2, 2); renderer.setScissor(0, 0, 2, 2); renderer.setScissorTest(true); renderer.render(scene, _wc); }
+    catch (e) { PW.err = 'geo ' + e; }
+    finally { scene.overrideMaterial = ov; for (const o of shown) o.visible = false; for (const o of on) o.layers.disable(30); for (const o of fc) o.frustumCulled = true;
+      renderer.setScissorTest(st0); renderer.setScissor(_sc); renderer.setViewport(_vp); renderer.setRenderTarget(prev); renderer.autoClear = ac; renderer.xr.enabled = xe; } }
   // draw a whole visible list in chunks (one chunk per frame), plus the mirror pass for the shop
   async function drawList(area, list, mirror) { for (let i = 0; i < list.length;) { i = drawChunk(area, list, i, 24, false); await frame(); }
     if (mirror && MV.twin) { const ml = list.filter(o => !o.isReflector); for (let i = 0; i < ml.length;) { i = drawChunk(area, ml, i, 24, true); await frame(); } } }
@@ -1299,7 +1309,7 @@ export function setupVR(A) {
   function buildJobs(first) { const J = []; const areas = [first, ...[1, 2, 4, 3].filter(a => a !== first)];
     for (const a of areas) J.push({ area: a, kind: 'vis', gate: a === first });
     J.push({ area: first, kind: 'rest' }); for (const a of areas) if (a !== first && a !== 4) J.push({ area: a, kind: 'rest' });
-    J.push({ kind: 'tex' }, { kind: 'trip' }); return J; }
+    J.push({ kind: 'tex' }, { kind: 'geo' }, { kind: 'trip' }); return J; }
   async function runJob(job) { const a = job.area, t0 = performance.now(), p0 = renderer.info.programs ? renderer.info.programs.length : 0;
     if (a === 2) { const q = performance.now(); try { if (A.loadShop) await A.loadShop(); } catch (e) {} try { mirrorTwin(); } catch (e) {} PW.loadShopMs = Math.round(performance.now() - q); _sl = performance.now(); }
     if (a === 3) { const q = performance.now(); try { if (window.__loadNK) await window.__loadNK(); } catch (e) {} PW.loadNKMs = Math.round(performance.now() - q); _sl = performance.now(); if (!scene.getObjectByName('nkStudio')) return; }
@@ -1314,6 +1324,14 @@ export function setupVR(A) {
         for (const m of ms) for (const k of ['map', 'emissiveMap', 'alphaMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'lightMap', 'envMap', 'bumpMap']) { const x = m[k]; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && x.image) seen.add(x); }
         if (o.material && o.material.uniforms) for (const u of Object.values(o.material.uniforms)) { const x = u && u.value; if (x && x.isTexture && !x.isRenderTargetTexture && !x.isVideoTexture && x.image) seen.add(x); } });
       let t = performance.now(); for (const x of seen) { const props = renderer.properties.get(x); if (props && props.__webglTexture && props.__version === x.version) continue; try { renderer.initTexture(x); PW.textures++; } catch (e) {} if (performance.now() - t > budget()) { await frame(); t = performance.now(); } } }
+    else if (job.kind === 'geo') { if (S.presenting && !VEIL.on) return;   // vrtest-v10 (Chief v256 45ecbdf, sliced): upload the geometry of everything still hidden
+      // (golf basement, Grok visitor, ticket FX, ...) so it isn't first uploaded mid-session. One raw override program (no lights in its key), 48 meshes a
+      // frame into a 2x2 scissor; Chief's version unhid the whole scene for one full render, which would add light sets and a long frame here.
+      const list = []; scene.traverse(o => { if (!(o.isMesh || o.isPoints || o.isLine) || !o.geometry || o.isReflector || o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return;
+        let p = o, hid = false; while (p) { if (!p.visible) { hid = true; break; } p = p.parent; } if (hid && !GEO.seen.has(o.geometry)) { GEO.seen.add(o.geometry); list.push(o); } });
+      const g0 = renderer.info.memory.geometries; let t = performance.now();
+      for (let i = 0; i < list.length; i += 48) { geoChunk(list.slice(i, i + 48)); if (performance.now() - t > budget()) { await frame(); t = performance.now(); } }
+      PW.geo = { meshes: list.length, uploaded: renderer.info.memory.geometries - g0, ms: Math.round(performance.now() - t0) }; }
     else if (job.kind === 'trip') { if (S.presenting && !VEIL.on) return;   // arcade -> shop -> arcade, one direction per frame (the first return froze on the Quest)
       for (const ar of [1, 2, 1]) await drawList(ar, LISTS[ar] || [], false); PW.trip = true; } }
   const LISTS = {}; PW.warm = new Set(); PW.pending = new Set(); PW.seenKeys = {}; PW.jobs = 0; PW.holdFor = 0;
