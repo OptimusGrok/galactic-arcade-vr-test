@@ -9,7 +9,7 @@
 <script>/* t855u / v233: if an older galactic-arcade-v* cache is still on this phone, clear it and reload ONCE
    before the start screen is interactive — never mid-session (v228 did this 6s after the room started drawing). */
 (function(){if(!('caches'in window)||location.protocol==='file:')return;
-  var want='galactic-arcade_vrtest-v9',key='gavrReloaded.'+want,skip=false;   /* VR edition: only its own galactic-arcade_vrtest-* caches */
+  var want='galactic-arcade_vrtest-v10',key='gavrReloaded.'+want,skip=false;   /* VR edition: only its own galactic-arcade_vrtest-* caches */
   try{skip=!!sessionStorage.getItem(key);}catch(e){skip=true;}
   window.__gaUpdate={want:want,checked:!!skip,reloading:false};
   if(skip)return;
@@ -31,7 +31,7 @@
 <script src="player.js"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Galactic Arcade VR — TEST BUILD (memory test v9)</title>
+<title>Galactic Arcade VR — TEST BUILD (memory test v10)</title>
 <meta name="theme-color" content="#07040c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -235,7 +235,7 @@ html.ga-updating #start,html.ga-updating #start *{pointer-events:none!important}
 </style>
 <link rel="stylesheet" href="cabinet-demo.css">
 </head><body>
-<div id="start" role="dialog" aria-label="Galactic Arcade start screen"><div id="stTest" style="position:fixed;top:max(6px,env(safe-area-inset-top));left:8px;z-index:50;background:#ffde00;color:#120018;font:900 clamp(13px,1.9vw,20px)/1.2 system-ui,sans-serif;letter-spacing:.06em;padding:5px 12px;border-radius:8px;box-shadow:0 0 0 3px #ff2bd6;pointer-events:none;white-space:nowrap;visibility:visible;opacity:1">TEST BUILD · VR MEMORY TEST v9</div><!-- vrtest-v6 (t463u): direct child of #start (not inside #stBox, which player.js hides), top-left so it clears the logo + buttons on the player select screen --><div id="stBg"></div><div id="stBox"><picture><source srcset="img/start.webp" type="image/webp"><img src="img/start.jpg" alt="Galactic Arcade — tap to start" draggable="false"></picture><div id="stBtns"><button class="stB" id="stStart">START</button><button class="stB" id="stOpt">OPTIONS</button></div></div>
+<div id="start" role="dialog" aria-label="Galactic Arcade start screen"><div id="stTest" style="position:fixed;top:max(6px,env(safe-area-inset-top));left:8px;z-index:50;background:#ffde00;color:#120018;font:900 clamp(13px,1.9vw,20px)/1.2 system-ui,sans-serif;letter-spacing:.06em;padding:5px 12px;border-radius:8px;box-shadow:0 0 0 3px #ff2bd6;pointer-events:none;white-space:nowrap;visibility:visible;opacity:1">TEST BUILD · VR MEMORY TEST v10</div><!-- vrtest-v6 (t463u): direct child of #start (not inside #stBox, which player.js hides), top-left so it clears the logo + buttons on the player select screen --><div id="stBg"></div><div id="stBox"><picture><source srcset="img/start.webp" type="image/webp"><img src="img/start.jpg" alt="Galactic Arcade — tap to start" draggable="false"></picture><div id="stBtns"><button class="stB" id="stStart">START</button><button class="stB" id="stOpt">OPTIONS</button></div></div>
 <div id="opt" aria-hidden="true"><div id="optP"><div id="optHd"><div id="optT">OPTIONS</div><button id="optX" title="Back">✕</button></div>
 <div id="optTabs"><button class="optTab" id="tabFloor">FLOOR</button><button class="optTab off" id="tabWalls">WALLS</button><button class="optTab off" id="tabWin">WINDOW</button></div>
 <div id="optNote"></div><button class="flT" id="optWard" style="display:block;margin:0 auto 10px;width:min(100%,300px)">WARDROBE</button><div id="flTiles"><div class="flT" data-floor="neon" id="flNeon"><img loading="lazy" src="img/floor_neon.webp" alt="" draggable="false">CURRENT<span class="now">NEON</span></div><div class="flT" data-floor="carpet" id="flCarpet"><img loading="lazy" src="img/floor_carpet.webp" alt="" draggable="false">ARCADE<span class="now">CHARACTER CARPET</span></div><div class="flT" data-floor="checkers" id="flChk"><img loading="lazy" src="img/floor_checkers.webp" alt="" draggable="false">CHECKERS<span class="now">BLACK + GOLD</span></div><div class="flT" data-floor="lava" id="flLava"><img loading="lazy" src="img/floor_lava.webp" alt="" draggable="false">LAVA<span class="now">CAVE PATHS</span></div><div class="flT" data-floor="cobble" id="flCob"><img loading="lazy" src="img/floor_cobble.webp" alt="" draggable="false">MEDIEVAL<span class="now">COBBLESTONE</span></div><div class="flT" data-floor="ice" id="flIce"><img loading="lazy" src="img/floor_ice.webp" alt="" draggable="false">ICE<span class="now">SLIPPERY</span></div></div>
@@ -420,7 +420,7 @@ if (document.getElementById('flBtn')) flBtnInit(); else document.addEventListene
 <script src="quest-pad.js"></script><!-- Quest Browser 2D (not in VR): v13 both sticks walk, turn with the on-screen turn buttons / trigger-drag (vr.js applies it) -->
 <script>/* FAST LOAD (t229): register the service worker (its install pre-caches ~7 MB) only after the room is drawing and things settle, so it never competes with the first load */
 if('serviceWorker' in navigator&&location.protocol!=='file:'){(function(){window.__GA_VER=window.__GA_VER||'v235';
-var done=0,want='galactic-arcade_vrtest-v9';
+var done=0,want='galactic-arcade_vrtest-v10';
 var reg=function(){if(done)return;done=1;navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(){
   return caches.keys();}).then(function(ks){var stale=ks.filter(function(k){return k.indexOf('galactic-arcade_vrtest-')===0&&k!==want;});
   if(!stale.length)return;return Promise.all(stale.map(function(k){return caches.delete(k);}));
