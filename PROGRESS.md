@@ -57,3 +57,16 @@
   anything from v21 to the main VR link, leave out debug.js, its <script> tag in index.html, its sw.js precache entry, the main.js __dbgFrame
   line, the opts.js addBtn line and the vr.js 'debug' Y-menu button + dbgPanel (or set TEST_BUILD = false).
 - test/debug_v21.js (flat 480x270 + VR IWER) all pass; test/vr_start_play.js passes.
+
+## vrtest-v22 (Dave t508u / t509u, sw galactic-arcade_vrtest-v22, label MEMORY TEST v22) - comfort locomotion (test repo only)
+- Room walking in VR (not Neon Knockout / Neon Bricks / chess / cabinets, which keep their own sticks):
+  - LEFT stick forward = teleport aim: parabolic ribbon arc (7.5 m/s, 32 points, one reused buffer) + landing ring, cyan when valid, red when invalid
+    (no floor within 9 m, spot inside a wall / cabinet per collide(), or a wall/cabinet between head and spot). Release = fade out 120 ms, rig moved so the head
+    lands on the ring (facing kept), fade in 150 ms. Release on red = nothing. Pull back or push hard sideways = cancel (must centre before aiming again).
+  - RIGHT stick flick = 30 deg snap turn around the head with a quick fade (70 out / 90 in). Needs re-centring (|x| < 0.35) between snaps. Off while the fire-type menu is open. Replaces smooth turn.
+  - MOVEMENT option: Y menu "MOVEMENT: TELEPORT + SNAP TURN / SMOOTH WALK + SNAP TURN", flat OPTIONS "VR MOVEMENT: TELEPORT / SMOOTH WALK". localStorage galacticarcade.vrMove (default teleport).
+  - Stick clicks unchanged (left = wrist HUD, right = fire menu). Beam pads + trigger floor teleport unchanged.
+  - Fade = own head-locked black sphere (BackSide, depthTest off, renderOrder 5000, hidden from the mirror) in both eyes. Force-cleared when leaving VR, while the PREPARING card is up,
+    when a beam starts, or after 1.5 s. Debug panel line: MOVE <mode> LAST TELEPORT <ms> TPs SNAPS.
+  - Kill switch ?oldmove=1 = old smooth walk + smooth turn, no MOVEMENT options.
+- test/vr_comfort_v22.js (31 checks: valid teleport + fade, red/invalid, cancel, exact 30 deg + re-centre, fire menu blocks snap, smooth persists across reload, fade force-clear, ?oldmove=1, no errors).

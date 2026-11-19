@@ -7,7 +7,7 @@
    Off by default; saved in localStorage galacticarcade.vrDebug; ?debug=1 turns it on. When off: no per-frame hook, no timers, no redraws
    (only console.error / error events are kept in a 5-entry ring, which costs nothing unless an error happens). */
 (function () {
-  var TEST_BUILD = true, VERSION = 'vrtest-v21', KEY = 'galacticarcade.vrDebug';
+  var TEST_BUILD = true, VERSION = 'vrtest-v22', KEY = 'galacticarcade.vrDebug';
   var host = location.hostname, path = location.pathname;
   if (!TEST_BUILD || !(/\/galactic-arcade-vr-test(\/|$)/.test(path) || host === 'localhost' || host === '127.0.0.1')) return;
   var ERR = [], errN = 0;
@@ -50,9 +50,11 @@
     var L = ['DEBUG · ' + VERSION + ' · ' + (s.xr ? 'VR' : 'FLAT') + ' · TIER ' + String(s.tier).toUpperCase(),
       'FPS ' + s.fps + '   FRAME ' + s.ms + ' ms   WORST(5s) ' + s.worst + ' ms', 'HEAP ' + s.heap,
       'DRAWS ' + s.calls + '   TRIS ' + (s.tris > 9999 ? Math.round(s.tris / 1000) + 'k' : s.tris), 'TEX ' + s.tex + '   GEO ' + s.geo + '   PROGRAMS ' + s.prog,
-      'WHERE ' + s.where, 'LAST BEAM ' + (s.beamMs == null ? '—' : s.beamMs + ' ms (worst frame ' + s.beamWorst + ' ms' + (s.beamDest != null ? ', to ' + s.beamDest : '') + ')'),
+      'WHERE ' + s.where, mvLine(), 'LAST BEAM ' + (s.beamMs == null ? '—' : s.beamMs + ' ms (worst frame ' + s.beamWorst + ' ms' + (s.beamDest != null ? ', to ' + s.beamDest : '') + ')'),
       'ERRORS ' + errN + (ERR.length ? ':' : ' · none')];
     for (var i = ERR.length - 1; i >= 0; i--) L.push('• ' + ERR[i].s); return L; }
+  function mvLine() { var c = null; try { c = window.__gaVR && window.__gaVR.comfort && window.__gaVR.comfort(); } catch (e) {}   // vrtest-v22
+    return c ? 'MOVE ' + String(c.mode).toUpperCase() + '   LAST TELEPORT ' + (c.lastTpMs == null ? '—' : c.lastTpMs + ' ms') + '   TPs ' + c.tps + '   SNAPS ' + c.snaps : 'MOVE —'; }
   D.lines = lines;
   // ---- flat corner HUD ----
   var hud = null;
