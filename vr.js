@@ -407,7 +407,9 @@ export function setupVR(A) {
         if (!on) B[B.length - 1].sel = true; }
       // v14 (t396u): voice chat. MIC ON asks for the mic (only on this tap), then the same button mutes / unmutes; ✕ VC leaves voice
       const vc = window.__voice, vin = !!(vc && vc.state !== 'off');
-      if (!inShop) add('nb', 'PLAY NEON BRICKS', 70, 620, 520, 100, !!nbApi(), nbStart);
+      const N = window.__nkGame, inNK = !!(tp && tp.where === 3 && N && N.setScenery && !N.noRoof);   // vrtest-v20 (Dave t503u): in Neon Knockout this slot = SCENERY
+      if (inNK) { add('nkScenery', 'SCENERY: ' + (N.sceneryWant !== N.scenery ? 'LOADING…' : N.scenery === 'rooftop' ? 'ROOFTOP' : 'STUDIO'), 70, 620, 520, 100, true, () => { const nx = N.sceneryWant === 'rooftop' ? 'studio' : 'rooftop'; N.setScenery(nx).then(() => { UI.key = ''; }); say(nx === 'rooftop' ? 'SCENERY: CYBERPUNK ROOFTOP' : 'SCENERY: NEON STUDIO'); UI.key = ''; }); if (N.sceneryWant === 'rooftop') B[B.length - 1].sel = true; }
+      else if (!inShop) add('nb', 'PLAY NEON BRICKS', 70, 620, 520, 100, !!nbApi(), nbStart);
       else add('shop', 'PRIZE SHOP', 70, 620, 520, 100, !!A.shop, () => uiOpen('shop'));
       add('mic', vc ? vc.label() : 'MIC ON', 610, 620, vin ? 224 : 344, 100, !!vc, vcTap); if (vc && vc.state === 'on') B[B.length - 1].sel = !vc.muted;
       if (vin) add('voff', '✕ VC', 846, 620, 108, 100, true, () => { vc.leave(); say('VOICE CHAT OFF'); }); }
@@ -991,6 +993,7 @@ export function setupVR(A) {
     const gk = A.shop && A.shop.grok; if (gk && A.tp && A.tp.where === 2 && !grokAway()) { gk.getWorldPosition(_sph.center); _sph.center.y += 1.0; _sph.radius = 0.9; const p = ray.intersectSphere(_sph, _hit); if (p) take(p.distanceTo(ray.origin), p, () => uiOpen('shop'), 'shop', SIGN_MAX); }   // the clerk himself
     const n = nbApi(); if (n && !n.playing && (!A.tp || A.tp.where === 1)) { const b = nbBox(); const p = b && ray.intersectBox(b, _hit); if (p) take(p.distanceTo(ray.origin), p, nbStart, 'nbWindow'); }
     if (chessFree()) { const p = ray.intersectBox(chessBox(), _hit); if (p) take(p.distanceTo(ray.origin), p, chessGo, 'chessTable'); }   // v12: the chess table itself
+    { const N = window.__nkGame; if (N && N.pointOrbs && nkIn()) for (const o of N.pointOrbs()) { _sph.center.copy(o.p); _sph.radius = o.r; const p = ray.intersectSphere(_sph, _hit); if (p) take(p.distanceTo(ray.origin), p, o.act, 'nkOrb_' + o.id, SIGN_MAX); } }   // vrtest-v20: point at a Neon Knockout menu orb + TRIGGER or A (punching still works)
     return best; }
   function signsUpdate() { const h = S.head; for (const g of signs) {
     if (g.keep) { if (!g.m) g.m = padLabel(g.name); if (g.m && g.m.material && g.m.material.color) { const hv = S.presenting && g.show() && S.hoverTarget === g.id; g.m.material.color.setHex(hv ? 0xffffff : 0xffffff); g.m.userData.hl = hv; } continue; }
@@ -1382,7 +1385,7 @@ export function setupVR(A) {
             if (P.trigDown && u.btn && u.btn.on) { pulse(P.src, 0.5, 30); S.lastPress = u.btn.id; u.btn.act(); UI.key = ''; } continue; } }
         const tg = pickTarget(ray), hit = pickCab(ray);
         if (tg && (!hit || tg.d <= hit.d)) { c.userData.ray.scale.z = tg.d; c.userData.ray.material.color.setHex(0x7dff9a); dot.position.copy(tg.p); dot.visible = true; if (!S.hover) S.hover = { target: tg.id, hand }; S.hoverTarget = tg.id;
-          if (P.trigDown) { pulse(P.src, 0.5, 30); S.lastPress = tg.id; tg.act(); } continue; }
+          if (P.trigDown || (P.aDown && /^nkOrb_/.test(tg.id))) { pulse(P.src, 0.5, 30); S.lastPress = tg.id; tg.act(); } continue; }
         if (UI.open) continue;   // no floor teleports while a panel is open
         if (hit) { c.userData.ray.scale.z = hit.d; c.userData.ray.material.color.setHex(0xffe14a); if (!S.hover) S.hover = { cab: hit.cab, m: machineOf(hit.cab), hand }; dot.position.copy(hit.p); dot.visible = true;
           if (P.trigDown) { pulse(P.src, 0.6, 40); startCab(hit.cab, hit.p); } continue; }

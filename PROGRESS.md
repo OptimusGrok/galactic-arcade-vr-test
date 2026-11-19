@@ -22,3 +22,24 @@
 - Room controls (headset): Y (left) = menu open / close, always; B (right) = gun fire only (gear()), nothing without the gun (B no longer opens the menu). NK B / Y pause, Strike B bomb, Neon Bricks, chess, golf unchanged.
 - Flat Quest (B / Y = trapped history back, the browser can't tell them apart): walking in the room, B fires the gun's FIRE button only while it is shown, else nothing (was Space = jump). In games / Neon Bricks unchanged.
 - test/vr_bfire_v25.js (real PLAY -> VR start; B with gun off / on / off, Y menu; flat Quest B gun off / on). Older tests that opened the menu with B now use Y.
+
+## vrtest-v20 (Dave t503u + t504u, sw galactic-arcade_vrtest-v20, label MEMORY TEST v20)
+- Neon Knockout SCENERY: NEON STUDIO (default) or CYBERPUNK ROOFTOP. Saved in localStorage galacticarcade.nkScenery. Kill switch ?norooftop=1 (no option, always the studio).
+  - Where: the purple SCENERY orb in the studio menu (right column under DAILY / GLOVES: punch it, or point the ray + TRIGGER or A; every NK menu orb is now pointable too);
+    the Y menu in Neon Knockout (SCENERY button in the PLAY NEON BRICKS slot); flat: SCENERY button next to START.
+  - nk/rooftop.js (new, procedural, no image files): sky dome (gradient, drifting clouds, stars in the shader), 155 instanced towers (lit windows,
+    neon crown bands + stripes computed in the shader, no window texture), wet roof slab (tiles, puddles that show the mirrored neon + reflect the
+    sky in the shader, rain ripples; the studio floor's lane / ring / beat cues kept), parapet + railing + 6 HVAC units with ducts + stairwell hut +
+    water tank + antenna mast with blinking beacon + dish + pipes (ONE merged mesh), neon strips with dim mirrored copies (ONE mesh), 9 neon signs
+    from one 512x512 canvas atlas incl. NEON KNOCKOUT billboard + signs on 5 hero towers (ONE mesh, flicker), 1100 rain streaks (ONE LineSegments,
+    animated in the vertex shader), 2 beacon sprites. No lights, no shadows. Ring, ropes, portals, targets, gloves, menu, board unchanged.
+  - Switch: built in short slices (setTimeout between sections), compiled with compileAsync while hidden, swapped in one frame. Studio -> rooftop:
+    studio columns / cones / sign / dust / glass floor hidden, their geometries + sign texture disposed (re-uploaded on return; materials kept so no
+    recompile). Rooftop -> studio: rooftop fully disposed (geometry, materials, atlas).
+- FOOTPRINTS (t504u): two glowing shoe-sole outlines (~27 cm, ~38 cm apart, toes toward the targets) at the stand spot, one additive 0.75 m quad +
+  256x256 canvas, y 0.016; ~0.6-0.9 on the title screen, 0.16 during a round. Both sceneries. Kill switch ?nofeet=1.
+- test/nk_scenery_v20.js (VR, 480x270, IWER): emulator numbers (SwiftShader, both eyes):
+  studio 358 draw calls / 37k tris / 211 GPU textures / 1221 geometries / 349 programs;
+  rooftop 272 draw calls / 50k tris / 213 textures / 1199 geometries / 355 programs (+6 rooftop programs, compiled before showing);
+  back to studio 362 / 213 / 1220 / 349 (+2 textures = cached SCENERY orb labels). Visible-studio texture bytes equal (1024x256 sign swapped for 512x512 atlas, ~1.33 MB each).
+  Worst frame while switching to the rooftop 26 ms (median 16.7), back to the studio 21.6 ms; build ~77 ms spread over ~11 tasks, compile ~21 ms.

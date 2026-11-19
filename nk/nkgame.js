@@ -6,6 +6,7 @@
 // uses different localStorage keys (neonko.*); this copy uses gaNK.*.
 import * as THREE from 'three';
 import { gloveSkin, gloveState, ownsGlove, wearGlove, gloveIds } from '../nkgloves.js';
+import { buildRooftop } from './rooftop.js?v=20';
 
 export const NK_DIFF = {
   easy: { label: 'EASY', bpm: 110, travel: 2.5, duck: 8, mix: 0.6, mult: 0.6 },
@@ -79,14 +80,15 @@ function fresnelMat(color, intensity = 1) {
 
 // ---------- studio environment ----------
 const reflect = new THREE.Group(); reflect.scale.y = -1; scene.add(reflect);
+const ENV_DEF = []; let envBucket = null;   // vrtest-v20: the studio's own surroundings (hidden + GPU-freed while the rooftop scenery is on)
 const neonMats = {};
 function neonMat(color, k = 1) { const key = color + ':' + k; return neonMats[key] || (neonMats[key] = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), fog: true })); }
 const reflMats = {};
 function reflMat(color) { return reflMats[color] || (reflMats[color] = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), fog: true, side: THREE.DoubleSide })); }
 const pulsers = [];   // neon pieces that pulse to the beat
 function neon(geo, color, x, y, z, rx = 0, ry = 0, rz = 0, k = 1.6, mirror = true) {
-  const m = new THREE.Mesh(geo, neonMat(color, k)); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); scene.add(m);
-  if (mirror) { const r = new THREE.Mesh(geo, reflMat(color)); r.position.copy(m.position); r.rotation.copy(m.rotation); r.renderOrder = -2; reflect.add(r); }
+  const m = new THREE.Mesh(geo, neonMat(color, k)); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); scene.add(m); if (envBucket) envBucket.push(m);
+  if (mirror) { const r = new THREE.Mesh(geo, reflMat(color)); r.position.copy(m.position); r.rotation.copy(m.rotation); r.renderOrder = -2; reflect.add(r); if (envBucket) envBucket.push(r); }
   return m;
 }
 // tunnel of neon portal frames the targets fly through
@@ -102,11 +104,13 @@ for (let i = 0; i < 6; i++) {
   portals.push({ z, c, mats: [neonMat(c, 1.8)] });
 }
 // side columns + ceiling strips
+envBucket = ENV_DEF;
 for (let i = 0; i < 9; i++) {
   const z = 1.5 - i * 4;
   [-1, 1].forEach(s => neon(new THREE.BoxGeometry(0.06, 5.5, 0.06), i % 3 === 1 ? 0xffffff : s < 0 ? COL.L : COL.R, s * 4.6, 2.75, z, 0, 0, 0, 1.4));
 }
-[-1, 1].forEach(s => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 40), neonMat(s < 0 ? COL.L : COL.R, 1.5)); m.position.set(s * 2.2, 6.2, -16); scene.add(m); });
+[-1, 1].forEach(s => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 40), neonMat(s < 0 ? COL.L : COL.R, 1.5)); m.position.set(s * 2.2, 6.2, -16); scene.add(m); ENV_DEF.push(m); });
+envBucket = null;
 // boxing-ring ropes at the sides and back (front open so targets fly in)
 const ropeCols = [COL.L, 0xffffff, COL.R];
 [-2.4, 2.4].forEach(x => {
@@ -127,8 +131,8 @@ function signTex() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.5), new THREE.MeshBasicMaterial({ map: signTex(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.85 }));
-sign.position.set(0, 7.2, -38); scene.add(sign);
-const backGlow = glowSprite(0x3a2bff, 30, 0.55); backGlow.position.set(0, 3, -40); backGlow.material.fog = false; scene.add(backGlow);
+sign.position.set(0, 7.2, -38); scene.add(sign); ENV_DEF.push(sign);
+const backGlow = glowSprite(0x3a2bff, 30, 0.55); backGlow.position.set(0, 3, -40); backGlow.material.fog = false; scene.add(backGlow); ENV_DEF.push(backGlow);
 // volumetric light cones
 const coneMat = (c) => new THREE.ShaderMaterial({
   uniforms: { uC: { value: new THREE.Color(c) }, uI: { value: 0.32 } },
@@ -140,7 +144,7 @@ const cones = [];
 [[-2.2, -3, COL.L], [2.2, -3, COL.R], [0, -9, COL.blue], [-3, -14, COL.R], [3, -14, COL.L], [0, 0.5, 0x8fb4ff]].forEach(([x, z, c], i) => {
   const geo = new THREE.ConeGeometry(1.5, 6.4, 28, 1, true); geo.translate(0, -3.2, 0);
   const m = new THREE.Mesh(geo, coneMat(c)); m.position.set(x, 6.4, z); scene.add(m);
-  const lamp = glowSprite(c, 0.9); lamp.position.set(x, 6.35, z); scene.add(lamp);
+  const lamp = glowSprite(c, 0.9); lamp.position.set(x, 6.35, z); scene.add(lamp); ENV_DEF.push(m, lamp);
   cones.push({ m, ph: i * 1.7, base: x });
 });
 // floating haze dust
@@ -148,7 +152,7 @@ const dustN = 260, dustGeo = new THREE.BufferGeometry(), dustPos = new Float32Ar
 for (let i = 0; i < dustN; i++) { dustPos[i * 3] = rand(-5, 5); dustPos[i * 3 + 1] = rand(0.2, 6); dustPos[i * 3 + 2] = rand(-30, 3); }
 dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
 const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.05, map: glowTex, color: 0x88aaff, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
-scene.add(dust);
+scene.add(dust); ENV_DEF.push(dust, floor);
 // ---------- particles / shards / rings / popups ----------
 const PN = 1400;
 const pGeo = new THREE.BufferGeometry();
@@ -617,6 +621,8 @@ function drawBoard() { const g = board.g; holoFrame(g, 600, 480, '#ffd56a');
 // ---------- studio menu: punch the orbs (VR) / tap the buttons (flat) ----------
 // START orb in the ring; left column EASY / NORMAL / BEAST; right column DAILY + GLOVES (cycles the skins you own)
 const menuOrbs = [];
+const QS = (() => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(); } })();
+const NO_ROOF = QS.get('norooftop') === '1', NO_FEET = QS.get('nofeet') === '1';
 const MENU_Z = -1.25, MENU_H = 1.4;   // v23: VR menu orbs' plane = the far edge of the 1.25 m ground circle (studio -Z), fixed height
 function menuOrb(id, label, color, dx, dy, r = 0.085) {
   const g = new THREE.Group(); g.name = 'nkOrb_' + id;
@@ -628,7 +634,8 @@ function menuOrb(id, label, color, dx, dy, r = 0.085) {
 function setOrbLabel(o, label, col) { o.label = label; o.lab.material.map = labelTexture(label, col || '#' + new THREE.Color(o.color).getHexString()); o.lab.material.needsUpdate = true; }
 const orbStart = menuOrb('start', 'START', 0x7fffd4, 0, -0.25, 0.2), orbs = {
   easy: menuOrb('easy', 'EASY', 0x7fe9ff, -0.62, 0.22), normal: menuOrb('normal', 'NORMAL', 0xff9cf0, -0.62, -0.02), beast: menuOrb('beast', 'BEAST', 0xff3355, -0.62, -0.26),
-  daily: menuOrb('daily', 'DAILY', 0xffd56a, 0.62, 0.12), gloves: menuOrb('gloves', 'GLOVES', 0xffffff, 0.62, -0.18) };
+  daily: menuOrb('daily', 'DAILY', 0xffd56a, 0.62, NO_ROOF ? 0.12 : 0.22), gloves: menuOrb('gloves', 'GLOVES', 0xffffff, 0.62, NO_ROOF ? -0.18 : -0.02) };
+if (!NO_ROOF) orbs.scenery = menuOrb('scenery', 'SCENERY', 0xb36bff, 0.62, -0.26);   // vrtest-v20 (Dave t503u)
 orbStart.lab.position.y = 1.6; orbStart.lab.scale.set(3.2, 0.8, 1);
 let menuOn = true;
 function showMenu() { menuOn = true; for (const o of menuOrbs) o.g.visible = true; drawMenu(); }
@@ -637,21 +644,67 @@ function menuAct(id) { state.menuHits = (state.menuHits || 0) + 1; state.lastMen
   if (id === 'start') return startRound();
   if (id === 'daily') { state.daily = !state.daily; drawMenu(); ui(); return true; }
   if (id === 'gloves') { const own = gloveIds().filter(ownsGlove), i = own.indexOf(state.skin); const nx = own[(i + 1) % own.length]; wearGlove(nx); applySkin(nx); ui(); return true; }
+  if (id === 'scenery') { setScenery(scenery === 'rooftop' || sceneryWant === 'rooftop' ? 'studio' : 'rooftop'); return true; }
   if (NK_DIFF[id]) { setDiff(id); return true; } }
 function drawMenu() { if (state.mode === 'play') return;
   for (const k of ['easy', 'normal', 'beast']) { const on = !state.daily && state.diff === k; orbs[k].core.material.opacity = on ? 1 : 0.35; orbs[k].halo.material.opacity = on ? 0.8 : 0.25; setOrbLabel(orbs[k], (on ? '▶ ' : '') + NK_DIFF[k].label); }
   const done = lsGet('gaNK.dailyDone', '') === dayKey(); setOrbLabel(orbs.daily, (state.daily ? '▶ ' : '') + 'DAILY' + (done ? ' ✓' : ' +' + DAILY_BONUS)); orbs.daily.core.material.opacity = state.daily ? 1 : 0.35;
   setOrbLabel(orbs.gloves, 'GLOVES: ' + gloveSkin(state.skin).name.toUpperCase()); orbs.gloves.core.material.color.set(gloveSkin(state.skin).glow);
+  if (orbs.scenery) setOrbLabel(orbs.scenery, sceneryLabel());
   if (state.mode === 'title') { const d = state.daily ? 'DAILY ROUTINE ' + dayKey() : NK_DIFF[state.diff].label + ' · ' + NK_DIFF[state.diff].bpm + ' BPM';
     drawCenterPanel([['NEON KNOCKOUT', 58, 62, '#ffffff'], ['Punch cyan orbs with your LEFT glove', 128, 26, '#7fe9ff'], ['Punch pink orbs with your RIGHT glove', 166, 26, '#ff9cf0'], ['Smash crystals with either • DUCK red bars', 204, 26, '#ffd56a'],
       [d, 262, 32, '#ffe14a'], ['Earn arcade tickets by grade', 306, 24, '#9ff8ff'], [state.vr ? 'Punch START to play · punch the side orbs to pick' : 'Press START (or ENTER) · F / J punch · SPACE ducks', 352, 24, '#ffffff']]); panelC.m.visible = true; } }
 function placeMenu() { const c = state.menuC || state.center, h = state.menuH || state.headH;
-  for (const o of menuOrbs) { const s = o.r * (1 + state.beatPulse * 0.08 + Math.sin(state.clock * 3 + o.dx * 5) * 0.03); o.pos.set(c.x + o.dx, h + o.dy, c.z - 0.5); o.g.position.copy(o.pos); o.g.scale.setScalar(s); } }
+  const hv = (window.__gaVR && window.__gaVR.hoverTarget) || '';
+  for (const o of menuOrbs) { const s = o.r * (1 + state.beatPulse * 0.08 + Math.sin(state.clock * 3 + o.dx * 5) * 0.03) * (hv === 'nkOrb_' + o.id ? 1.18 : 1); o.pos.set(c.x + o.dx, h + o.dy, c.z - 0.5); o.g.position.copy(o.pos); o.g.scale.setScalar(s); } }
 
 // ---------- studio props: a floor marker where you stand, the high-score wall beside the teleporter pad ----------
 const PAD = ENV.padLocal || new THREE.Vector3(2.6, 0, 2.4);
 const mark = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.38, 48), new THREE.MeshBasicMaterial({ color: 0x7fffd4, transparent: true, opacity: 0.8, fog: false, side: THREE.DoubleSide })); mark.rotation.x = -Math.PI / 2; mark.position.set(0, 0.01, 0); mark.name = 'nkStandHere'; scene.add(mark);
 board.m.position.set(PAD.x + 1.6, 1.7, PAD.z - 0.6); board.m.renderOrder = 5;
+// ---------- vrtest-v20 (Dave t504u): FOOTPRINTS. Two glowing shoe-sole outlines where you stand to box, shoulder width apart, toes toward
+// the targets (-Z). One flat additive quad + a 256x256 canvas; faint (not gone) once the round starts. ?nofeet=1 = off.
+function feetTex() { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), PX = 256 / 0.75;   // 0.75 m square
+  const sole = (cx, ang) => { g.save(); g.translate(128 + cx * PX, 128); g.rotate(ang); g.beginPath();
+    const L = 0.27 * PX, W = 0.1 * PX;   // ~27 cm long, 10 cm wide; toes up (= -Z on the floor)
+    g.moveTo(0, -L / 2); g.bezierCurveTo(W * 0.75, -L / 2, W * 0.62, -L * 0.1, W * 0.42, L * 0.08); g.bezierCurveTo(W * 0.36, L * 0.22, W * 0.5, L / 2, 0, L / 2);
+    g.bezierCurveTo(-W * 0.5, L / 2, -W * 0.36, L * 0.22, -W * 0.44, L * 0.06); g.bezierCurveTo(-W * 0.62, -L * 0.12, -W * 0.68, -L / 2, 0, -L / 2); g.closePath();
+    g.lineWidth = 5; g.strokeStyle = '#7fffd4'; g.shadowColor = '#18d8ff'; g.shadowBlur = 14; g.stroke(); g.lineWidth = 2; g.shadowBlur = 0; g.strokeStyle = '#ffffff'; g.stroke(); g.restore(); };
+  sole(-0.19, -0.12); sole(0.19, 0.12);   // ~38 cm between the centres, toes turned out a little
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+const feet = NO_FEET ? null : new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: feetTex(), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+if (feet) { feet.rotation.x = -Math.PI / 2; feet.position.set(0, 0.016, 0); feet.renderOrder = 3; feet.name = 'nkFeet'; scene.add(feet); }
+
+// ---------- vrtest-v20 (Dave t503u): SCENERY = the studio (default) or a CYBERPUNK ROOFTOP (nk/rooftop.js). The ring, targets, menu, gloves,
+// portals and gameplay are the same in both; only the surroundings swap. Saved in galacticarcade.nkScenery. Switching builds the rooftop
+// hidden, compiles its 6 programs off the frame (compileAsync), then swaps in one frame; the unused scenery's GPU buffers / textures are
+// freed (rooftop: everything disposed; studio: its geometries + sign texture disposed and re-uploaded on return; materials kept so
+// its shaders stay compiled). ?norooftop=1 = no option, always the studio.
+const SC_KEY = 'galacticarcade.nkScenery';
+let scenery = 'studio', sceneryWant = 'studio', roofKit = null, roofP = null, scSeq = 0;
+const scStats = { switches: 0, lastMs: 0, compileMs: 0, builds: 0, disposes: 0 };
+function sceneryLabel() { return sceneryWant !== scenery ? 'SCENERY: LOADING…' : 'SCENERY: ' + (scenery === 'rooftop' ? 'ROOFTOP' : 'STUDIO'); }
+function studioEnv(on) { for (const o of ENV_DEF) o.visible = on;
+  if (!on) { for (const o of ENV_DEF) { if (o.geometry && !o.isSprite) o.geometry.dispose(); } sign.material.map.dispose(); } }
+function topScene() { let p = root; while (p.parent) p = p.parent; return p; }
+function compileKit(obj) { const sc = topScene();
+  try { if (!ENV.isVR() && window.__compileForPlay) return window.__compileForPlay(obj, camera, sc); return renderer.compileAsync ? renderer.compileAsync(obj, camera, sc) : (renderer.compile(obj, camera, sc), Promise.resolve()); }
+  catch (e) { return Promise.reject(e); } }
+function applyScenery(id) { const t0 = performance.now(); scStats.tApply = t0;
+  if (id === 'rooftop') { roofKit.group.visible = true; studioEnv(false); }
+  else { studioEnv(true); if (roofKit) { roofKit.dispose(); roofKit = null; scStats.disposes++; } }
+  scenery = id; scStats.switches++; scStats.lastMs = Math.round((performance.now() - t0) * 10) / 10; drawMenu(); ui(); }
+function setScenery(id, opts = {}) { if (id !== 'rooftop') id = 'studio'; if (NO_ROOF) id = 'studio';
+  sceneryWant = id; if (!opts.noSave) lsSet(SC_KEY, id); const seq = ++scSeq;
+  if (id === scenery) { if (id === 'studio' && roofKit) { roofKit.dispose(); roofKit = null; scStats.disposes++; } drawMenu(); ui(); return Promise.resolve(id); }
+  if (id === 'studio') { applyScenery('studio'); return Promise.resolve(id); }
+  drawMenu(); ui();
+  const kitP = roofKit ? Promise.resolve(roofKit) : (roofP || (roofP = (async () => { const b0 = performance.now(); scStats.tBuild = b0; const k = await buildRooftop({ glowTex, COL, slice: !opts.sync });
+    scStats.buildMs = Math.round(performance.now() - b0); scStats.builds++; k.group.visible = false; scene.add(k.group); roofKit = k; roofP = null; return k; })()));
+  return kitP.then(k => { if (seq !== scSeq || sceneryWant !== 'rooftop') { if (sceneryWant === 'studio' && roofKit && scenery !== 'rooftop') { roofKit.dispose(); roofKit = null; scStats.disposes++; } return scenery; }
+    if (opts.sync) { applyScenery('rooftop'); compileKit(k.group).catch(() => {}); return scenery; }   // at load: shown at once (compiled in the background + by the beam pre-warm)
+    const c0 = performance.now(); scStats.tCompile = c0; return compileKit(k.group).catch(() => {}).then(() => { scStats.compileMs = Math.round(performance.now() - c0); if (seq !== scSeq || sceneryWant !== 'rooftop' || !roofKit) return scenery; applyScenery('rooftop'); return scenery; }); }); }
+
 function placeBoard() { board.m.updateMatrixWorld(); board.m.lookAt(toWorld(_w2.set(0, 1.6, 0), new THREE.Vector3())); }
 
 // ---------- VR: the arcade's controllers are the gloves ----------
@@ -687,7 +740,7 @@ const css = document.createElement('style'); css.textContent = '#nkUI{position:f
 document.head.appendChild(css);
 const UI = document.createElement('div'); UI.id = 'nkUI'; UI.innerHTML = '<div class="hud"><span id="nkSc">0</span><span id="nkTm">2:30</span><span id="nkSt">x1</span></div>'
   + '<div class="nkM"><div class="t">NEON KNOCKOUT</div><div class="s" id="nkInfo"></div><div class="row"><button data-nk="easy">EASY</button><button data-nk="normal">NORMAL</button><button data-nk="beast">BEAST</button><button data-nk="daily">DAILY</button></div>'
-  + '<div class="row"><button data-nk="gloves" id="nkGl">GLOVES</button><button data-nk="start" id="nkGo">START</button></div><div class="s">F / J or LEFT / RIGHT punch · SPACE or DUCK ducks · best in VR</div></div>'
+  + '<div class="row"><button data-nk="gloves" id="nkGl">GLOVES</button><button data-nk="start" id="nkGo">START</button>' + (NO_ROOF ? '' : '<button data-nk="scenery" id="nkScn">SCENERY</button>') + '</div><div class="s">F / J or LEFT / RIGHT punch · SPACE or DUCK ducks · best in VR</div></div>'
   + '<div class="pads"><button id="nkL" data-nk="pL">LEFT</button><button id="nkD" data-nk="pD">DUCK</button><button id="nkR" data-nk="pR">RIGHT</button></div>';
 document.body.appendChild(UI);
 const stopE = e => { e.stopPropagation(); };
@@ -702,7 +755,7 @@ addEventListener('keyup', e => { if (inStudioFlat() && state.mode === 'play') { 
 let inStudio = false; const inStudioFlat = () => inStudio && !ENV.isVR();
 function ui() { const on = inStudioFlat(); UI.classList.toggle('on', on); UI.classList.toggle('play', on && state.mode === 'play'); if (!on) return;
   for (const b of UI.querySelectorAll('[data-nk]')) { const k = b.dataset.nk; b.classList.toggle('sel', (NK_DIFF[k] && !state.daily && state.diff === k) || (k === 'daily' && state.daily)); }
-  UI.querySelector('#nkGl').textContent = 'GLOVES: ' + gloveSkin(state.skin).name.toUpperCase(); UI.querySelector('#nkGo').textContent = state.mode === 'results' ? 'AGAIN' : 'START';
+  UI.querySelector('#nkGl').textContent = 'GLOVES: ' + gloveSkin(state.skin).name.toUpperCase(); UI.querySelector('#nkGo').textContent = state.mode === 'results' ? 'AGAIN' : 'START'; { const b = UI.querySelector('#nkScn'); if (b) { b.textContent = sceneryLabel(); b.classList.toggle('sel', sceneryWant === 'rooftop'); } }
   const r = state.result, done = lsGet('gaNK.dailyDone', '') === dayKey();
   UI.querySelector('#nkInfo').textContent = (r ? 'SCORE ' + r.score.toLocaleString() + ' · GRADE ' + r.grade + ' · +' + (r.tix + r.bonus) + ' TICKETS' + (r.isBest ? ' · NEW BEST' : '') + '  |  ' : '') + (state.daily ? 'DAILY ' + dayKey() + (done ? ' (bonus claimed)' : ' · +' + DAILY_BONUS + ' bonus') : NK_DIFF[state.diff].label + ' · ' + NK_DIFF[state.diff].bpm + ' BPM') + ' · BEST ' + bestScore().toLocaleString(); }
 function updHud() { UI.querySelector('#nkSc').textContent = state.score.toLocaleString(); UI.querySelector('#nkTm').textContent = fmtTime(ROUND_LEN - state.t); UI.querySelector('#nkSt').textContent = 'x' + mult() + (state.streak ? ' · ' + state.streak : ''); }
@@ -776,7 +829,9 @@ function update(dt) {
   cones.forEach(c => { c.m.rotation.z = Math.sin(state.clock * 0.6 + c.ph) * 0.28; c.m.rotation.x = Math.cos(state.clock * 0.45 + c.ph) * 0.18; c.m.material.uniforms.uI.value = 0.22 + state.beatPulse * 0.14 + (state.power > 0 ? 0.12 : 0); });
   const pw = state.power > 0;
   backGlow.material.color.set(pw ? 0xff9a2b : 0x3a2bff); sign.material.opacity = 0.7 + state.beatPulse * 0.3;
-  const dp = dustGeo.attributes.position.array; for (let i = 0; i < dustN; i++) { dp[i * 3 + 2] += dt * (0.6 + (pw ? 2 : 0)); if (dp[i * 3 + 2] > 3) dp[i * 3 + 2] = -30; } dustGeo.attributes.position.needsUpdate = true;
+  if (roofKit && scenery === 'rooftop') roofKit.update(dt, state.clock, state.beatPulse, pw, root.position);
+  if (feet) { feet.position.set(state.center.x, 0.016, state.center.z); feet.material.opacity = state.mode === 'play' ? 0.16 : 0.62 + state.beatPulse * 0.3; }
+  if (scenery !== 'rooftop') { const dp = dustGeo.attributes.position.array; for (let i = 0; i < dustN; i++) { dp[i * 3 + 2] += dt * (0.6 + (pw ? 2 : 0)); if (dp[i * 3 + 2] > 3) dp[i * 3 + 2] = -30; } dustGeo.attributes.position.needsUpdate = true; }
   state.hurt = Math.max(0, state.hurt - dt * 2); state.shake = Math.max(0, state.shake - dt * 1.6);
   mark.material.opacity = state.mode === 'play' ? 0.25 : 0.5 + state.beatPulse * 0.4; mark.position.set(state.center.x, 0.012, state.center.z);
   panelTick -= dt;
@@ -792,10 +847,15 @@ function tick(dt) {
   update(Math.min(dt, 0.1) * (window.__nkSpeed ?? 1));
 }
 root.visible = false; toTitle();
+// the saved choice is applied at load (the beam pre-warm then draws the rooftop like any other studio mesh)
+if (!NO_ROOF && lsGet(SC_KEY, 'studio') === 'rooftop') setScenery('rooftop', { sync: true, noSave: true });
 const api = {
   state, tick, startRound, endRound, toTitle, abort, pause, resume, resetRound, punch, duck, setDiff, menuAct, applySkin, scores, drawBoard, bestScore,
   get frames() { return frames; }, get inStudio() { return inStudio; }, get BPM() { return BPM; },
   events: () => state.events, menuOrbs, gloves, glove, board,
+  setScenery, get scenery() { return scenery; }, get sceneryWant() { return sceneryWant; }, scStats, get roofKit() { return roofKit; }, get noRoof() { return NO_ROOF; }, feet,
+  // vrtest-v20: menu orbs the VR pointer can aim at (vr.js pickTarget): world centre + radius + action
+  pointOrbs() { if (state.mode === 'play' || !inStudio) return []; return menuOrbs.filter(o => o.g.visible).map(o => ({ id: o.id, p: toWorld(o.pos, new THREE.Vector3()), r: o.r * 1.15, act: () => menuAct(o.id) })); },
   orbWorld(id) { const o = menuOrbs.find(o => o.id === id); return o ? toWorld(o.pos, new THREE.Vector3()) : null; },
   targets: () => targets.filter(t => t.type !== 'BAR' && t.alive && !t.claimed).map(t => ({ type: t.type, dt: t.t - state.t, x: t.x })),
   bars: () => targets.filter(t => t.type === 'BAR' && t.alive).map(t => t.t - state.t),
