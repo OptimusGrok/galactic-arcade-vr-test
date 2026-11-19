@@ -2031,6 +2031,7 @@ function frame(now, xrFrame) {
   // t349u: in VR, draw into the XR framebuffer three bound for this frame. NEVER setRenderTarget(null) before it: on a real Quest that draws to the hidden page canvas = pitch-black headset.
   if (draw && (XRP || (warm.done && !warm.drawn) || !document.getElementById('start') || (window.__start && window.__start.dismissed))) { if (warm.done) warm.drawn = true; if (composer && usePost && !XRP) composer.render(); else { if (XRP) { const rt = renderer.getRenderTarget(); VRH && VRH.rtCheck && VRH.rtCheck(rt); } renderer.render(scene, camera); } PS.lastDraw = now; PS.draws++; stats.draws = PS.draws; }   // t295u: the opaque start screen hides the room; let its shaders compile in slices first
   else if (!draw) { PS.skipped++; stats.skipped = PS.skipped; }
+  if (window.__dbgFrame && draw) window.__dbgFrame(now);   // vrtest-v21 debug overlay (debug.js, test link only): null unless DEBUG is on
   const cpu = performance.now() - t0;
   stats.frames++; stats.cpu = cpu; stats.cpuAvg += (cpu - stats.cpuAvg) * 0.05; stats.gapAvg += (gap - stats.gapAvg) * 0.05;
   if (!window.__noAdapt && !XRP) {   // VR: no dpr / tier changes mid-session (the XR layer size is fixed)

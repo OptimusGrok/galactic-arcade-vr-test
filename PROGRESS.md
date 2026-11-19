@@ -43,3 +43,17 @@
   rooftop 272 draw calls / 50k tris / 213 textures / 1199 geometries / 355 programs (+6 rooftop programs, compiled before showing);
   back to studio 362 / 213 / 1220 / 349 (+2 textures = cached SCENERY orb labels). Visible-studio texture bytes equal (1024x256 sign swapped for 512x512 atlas, ~1.33 MB each).
   Worst frame while switching to the rooftop 26 ms (median 16.7), back to the studio 21.6 ms; build ~77 ms spread over ~11 tasks, compile ~21 ms.
+
+## vrtest-v21 (Dave via Chief t958u, sw galactic-arcade_vrtest-v21, label MEMORY TEST v21): DEBUG overlay — TEST LINK ONLY
+- debug.js (new, classic script before session.js; precached): FPS, frame time (1 s), worst frame (5 s), JS heap (performance.memory, else n/a),
+  renderer.info per frame (draw calls + triangles summed over every pass / both eyes: autoReset is off only while DEBUG is on), textures /
+  geometries / programs, tier, version, room / scene (arcade / room 2 / prize shop / Neon Knockout + scenery + mode, cabinet game, beaming),
+  last beam time (tp leaves idle -> back to idle) + its worst frame, last 5 errors (console.error, window error incl. failed loads, unhandledrejection).
+- Open it: flat = monkey-face OPTIONS -> DEBUG: OFF/ON (opts.js calls __gaDebug.addBtn) -> corner HUD bottom-left. VR = Y menu -> DEBUG
+  (top-left of the menu) -> small panel above the left-wrist display. ?debug=1 turns it on. Saved in localStorage galacticarcade.vrDebug.
+- Off = no frame hook (window.__dbgFrame null; main.js only checks the property), no timers, no DOM / canvas redraws. On = HUD / panel text
+  rebuilt at most 4 / s (VR canvas redrawn only when the numbers change).
+- !!! NOT FOR MAIN: debug.js has TEST_BUILD = true and only runs on a path containing /galactic-arcade-vr-test (or localhost). When porting
+  anything from v21 to the main VR link, leave out debug.js, its <script> tag in index.html, its sw.js precache entry, the main.js __dbgFrame
+  line, the opts.js addBtn line and the vr.js 'debug' Y-menu button + dbgPanel (or set TEST_BUILD = false).
+- test/debug_v21.js (flat 480x270 + VR IWER) all pass; test/vr_start_play.js passes.

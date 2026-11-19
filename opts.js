@@ -23,6 +23,7 @@ export function setupOpts({ play, kiosk, shield, st, monkey, setFloor, getFloor,
   <div class="opSub">SAVE / LOAD <small id="opNote"></small></div><div id="opSlots"></div></div>
   <div id="opQ"><div class="opQb"><div id="opQt"></div><div id="opQn"></div><div class="opQr"><button class="opB" id="opYes">YES</button><button class="opB" id="opNo">NO</button></div></div></div>`;
   document.body.appendChild(op); face($('opFace'), 64);
+  try { if (window.__gaDebug && window.__gaDebug.addBtn) window.__gaDebug.addBtn(); } catch (e) {}   // vrtest-v21: DEBUG button (debug.js, test link only)
   // t795u: floor / walls / window tiles (same set as the start-screen picker). Changing a different one while walking costs 1 ticket; re-pick is free. Start-screen #opt stays free.
   const FL = [['neon','img/floor_neon.webp','CURRENT','NEON','opFlNeon'],['carpet','img/floor_carpet.webp','ARCADE','CHARACTER CARPET','opFlCarpet'],['checkers','img/floor_checkers.webp','CHECKERS','BLACK + GOLD','opFlChk'],['lava','img/floor_lava.webp','LAVA','CAVE PATHS','opFlLava'],['cobble','img/floor_cobble.webp','MEDIEVAL','COBBLESTONE','opFlCob'],['ice','img/floor_ice.webp','ICE','SLIPPERY','opFlIce']];
   const WL = [['current','img/walls_current.webp','CURRENT','NEON PANELS','opWlCur'],['viking','img/walls_viking.webp','VIKING','RUNE WALLS','opWlVik'],['portals','img/walls_portals.webp','PORTALS','SWIRLING VORTEX','opWlPor'],['medieval','img/walls_medieval.webp','MEDIEVAL','STONE WALLS','opWlMed']];

@@ -178,6 +178,19 @@ export function setupVR(A) {
     for (const line of L) { let rest = line; g.fillStyle = /^==/.test(line) ? '#ffde00' : /^battery-like: (?!none)/.test(line) ? '#7dff9a' : '#e8f6ff';
       while (rest.length && y < 1000) { g.fillText(rest.slice(0, 84), 10, y); rest = rest.slice(84); y += 22; } }
     tex.needsUpdate = true; }
+  // vrtest-v21 DEBUG panel (debug.js; test link only): above the left-wrist display, redrawn only when debug.js publishes new numbers (<= 4 / s)
+  let dbgM = null, dbgRev = -1;
+  function dbgPanel() { const DG = window.__gaDebug, on = !!(DG && DG.on && S.presenting);
+    if (!on) { if (dbgM) dbgM.visible = false; return; }
+    if (!dbgM) { dbgM = panel(0.24, 0.17, 640, 454); dbgM.name = 'vrDebug'; dbgM.renderOrder = 1002; scene.add(dbgM); }
+    dbgM.visible = true; dbgM.position.set(0, 0.155, 0.004).applyQuaternion(hud.quaternion).add(hud.position); dbgM.quaternion.copy(hud.quaternion);
+    if (DG.rev !== dbgRev) { dbgRev = DG.rev; dbgDraw(DG.lines()); } }
+  function dbgDraw(L) { const { cv, g, tex } = dbgM.userData, W = cv.width, H = cv.height; g.clearRect(0, 0, W, H);
+    g.fillStyle = 'rgba(6,2,18,0.88)'; g.strokeStyle = '#7fffd4'; g.lineWidth = 4; g.beginPath(); g.roundRect ? g.roundRect(2, 2, W - 4, H - 4, 18) : g.rect(2, 2, W - 4, H - 4); g.fill(); g.stroke();
+    let y = 34; L.forEach((s, i) => { g.font = (i === 0 ? '800 24px' : i < 7 ? '700 23px' : '600 19px') + ' ui-monospace, Menlo, Consolas, monospace'; g.fillStyle = i === 0 ? '#ffde00' : /^•/.test(s) ? '#ff8a9a' : '#e8f6ff';
+      let t = s; while (g.measureText(t).width > W - 28 && t.length > 4) t = t.slice(0, -2); g.fillText(t === s ? s : t + '…', 14, y); y += i < 7 ? 34 : 28; });
+    tex.needsUpdate = true; S.dbgDraws = (S.dbgDraws || 0) + 1; }
+  S.dbgPanel = () => ({ on: !!(dbgM && dbgM.visible), draws: S.dbgDraws || 0 });
   S.padInfo = () => ({ on: PADINFO, lines: PI_.lines }); hud.name = 'vrHud'; hud.visible = false; scene.add(hud);   // follows the left controller: the in-world ticket display
 
   // ---------- the game screen (shown while a cabinet game runs) ----------
@@ -400,6 +413,8 @@ export function setupVR(A) {
       // v12 (t388u): the monkey BACKPACK (prizes + accessories inside) and a FLOOR + WALLS square that shows a different floor every 5 s;
       // no BEAM (the pad signs beam) / BUY TICKETS (the ticket machine + its sign) / CLOSE: just the X (or GRIP)
       add('pack', 'BACKPACK', 70, 180, 420, 350, true, () => { UI.packTab = 'prizes'; uiOpen('pack'); }); B[B.length - 1].art = 'pack';
+      { const DG = window.__gaDebug; if (DG) { add('debug', DG.on ? 'DEBUG ON' : 'DEBUG', 24, 22, 220, 90, true, () => { DG.toggle(); say(DG.on ? 'DEBUG ON · PANEL ABOVE YOUR LEFT WRIST' : 'DEBUG OFF'); UI.key = ''; }); if (DG.on) B[B.length - 1].sel = true; } }   // vrtest-v21: test link only (debug.js)
+
       add('room', 'FLOOR + WALLS', 534, 180, 420, 350, !!window.__setFloor, () => { UI.roomTab = UI.roomTab || 'floor'; uiOpen('room'); }); B[B.length - 1].art = 'floor';
       // v15 (t398u): background music only (music.js 'neonarcade.music', the same switch as the flat Options MUSIC button); game sounds + voice chat stay
       add('toTitle', 'BACK TO TITLE SCREEN', 524, 546, 430, 58, true, () => uiOpen('toTitle'));   // vrtest-v5 (Dave t462u)
@@ -1427,7 +1442,7 @@ export function setupVR(A) {
     const T = play.tickets ? play.tickets.total : 0, lc = ctrlFor('left') || ctrlFor('right');
     if (lc && lc.userData.src) { lc.updateMatrixWorld(true); hud.position.set(0, 0.07, 0.02).applyMatrix4(lc.matrixWorld); hud.quaternion.copy(lc.getWorldQuaternion(_q)).multiply(HUD_TILT); }
     else if (S.head) { const h = S.head; hud.position.set(h.x - Math.sin(h.yaw) * 0.7, h.y - 0.45, h.z - Math.cos(h.yaw) * 0.7); hud.rotation.set(-0.5, h.yaw, 0, 'YXZ'); }
-    hud.visible = !!(S.presenting && !S.hudHidden); placeFireMenu(); if (padBoard) padBoard.visible = !!(PADINFO && S.presenting && !S.hudHidden);
+    hud.visible = !!(S.presenting && !S.hudHidden); dbgPanel(); placeFireMenu(); if (padBoard) padBoard.visible = !!(PADINFO && S.presenting && !S.hudHidden);
     if (play.lastToast && play.lastToast !== S._toast) { S._toast = play.lastToast; S.msg = play.lastToast; S.msgT = 2.5; }
     S.msgT = Math.max(0, S.msgT - dt);
     const hv = S.hover && S.hover.m, cost = hv ? (hv.cost || 1) : 0, TG = { ward: 'TRIGGER: ACCESSORIES', tickets: 'TRIGGER: BUY TICKETS', kiosk: 'TRIGGER: BUY TICKETS', beamShop: 'TRIGGER: SHOP', beamNK: 'TRIGGER: NEON KNOCKOUT', beamArcade: 'TRIGGER: BEAM TO ARCADE', shop: 'TRIGGER: PRIZE SHOP', nb: 'TRIGGER: PLAY NEON BRICKS', nbWindow: 'TRIGGER: PLAY NEON BRICKS', chatClerk: 'TRIGGER: CHAT WITH GROK', chatVisitor: 'TRIGGER: CHAT WITH GROK', chess: 'TRIGGER: PLAY CHESS WITH GROK', golfPay: 'TRIGGER: PAY 5 TICKETS · MINI GOLF', chessTable: 'TRIGGER: PLAY CHESS WITH GROK' };
