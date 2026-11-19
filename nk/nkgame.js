@@ -6,7 +6,7 @@
 // uses different localStorage keys (neonko.*); this copy uses gaNK.*.
 import * as THREE from 'three';
 import { gloveSkin, gloveState, ownsGlove, wearGlove, gloveIds } from '../nkgloves.js';
-import { buildRooftop } from './rooftop.js?v=20';
+import { buildRooftop } from './rooftop.js?v=23';
 
 export const NK_DIFF = {
   easy: { label: 'EASY', bpm: 110, travel: 2.5, duck: 8, mix: 0.6, mult: 0.6 },
@@ -49,7 +49,6 @@ const floorMat = new THREE.ShaderMaterial({
   col+=lane*mix(vec3(0.1,0.85,1.0),vec3(1.0,0.2,0.85),step(0.,vW.x))*(0.55+0.45*flow)*exp(-max(0.,-vW.z)*0.04);
   vec3 hot=mix(vec3(0.55,0.05,0.85),vec3(1.0,0.75,0.2),uPow);
   col+=hot*0.16*exp(-d*0.45)*(0.6+0.6*uBeat);
-  float ring=smoothstep(0.05,0.0,abs(length(vW.xz)-1.25-uBeat*0.15));col+=ring*vec3(0.2,0.6,1.)*0.35;
   float fogF=1.-exp(-pow(length(vW-vC)*0.028,2.));
   gl_FragColor=vec4(mix(col,uFog,fogF),mix(0.74-ln*0.25,1.,fogF));}`,
   transparent: true, depthWrite: false,
@@ -111,16 +110,7 @@ for (let i = 0; i < 9; i++) {
 }
 [-1, 1].forEach(s => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 40), neonMat(s < 0 ? COL.L : COL.R, 1.5)); m.position.set(s * 2.2, 6.2, -16); scene.add(m); ENV_DEF.push(m); });
 envBucket = null;
-// boxing-ring ropes at the sides and back (front open so targets fly in)
-const ropeCols = [COL.L, 0xffffff, COL.R];
-[-2.4, 2.4].forEach(x => {
-  neon(new THREE.CylinderGeometry(0.06, 0.07, 1.5, 10), 0xffffff, x, 0.75, 1.6, 0, 0, 0, 1.0);
-  neon(new THREE.CylinderGeometry(0.06, 0.07, 1.5, 10), 0xffffff, x, 0.75, -2.6, 0, 0, 0, 1.0);
-  ropeCols.forEach((c, i) => neon(new THREE.CylinderGeometry(0.018, 0.018, 4.2, 6), c, x, 0.45 + i * 0.38, -0.5, Math.PI / 2, 0, 0, 1.7));
-});
-ropeCols.forEach((c, i) => neon(new THREE.CylinderGeometry(0.018, 0.018, 4.8, 6), c, 0, 0.45 + i * 0.38, 1.6, 0, 0, Math.PI / 2, 1.7));
-// ring mat edge
-neon(new THREE.TorusGeometry(1.25, 0.012, 6, 64), COL.blue, 0, 0.01, 0, -Math.PI / 2, 0, 0, 2.2, false);
+// vrtest-v23 (Dave t510u / t511u): the boxing ring (white posts, ropes, the 1.25 m mat edge) is gone in both sceneries
 // back wall hologram sign
 function signTex() {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const g = c.getContext('2d');
@@ -235,6 +225,7 @@ function labelTexture(txt, color) {
   const key = txt + color; if (labelTex[key]) return labelTex[key];
   const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
   g.font = 'italic 900 78px system-ui,Arial Black,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  { const tw = g.measureText(txt).width; if (tw > 470) g.font = 'italic 900 ' + Math.floor(78 * 470 / tw) + 'px system-ui,Arial Black,sans-serif'; }   // vrtest-v23: long labels (SCENERY: ROOFTOP) were clipped by the 512 px canvas
   g.shadowColor = color; g.shadowBlur = 24; g.lineWidth = 6; g.strokeStyle = color; g.strokeText(txt, 256, 66); g.fillStyle = '#fff'; g.fillText(txt, 256, 66);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return (labelTex[key] = t);
 }
@@ -635,7 +626,7 @@ function setOrbLabel(o, label, col) { o.label = label; o.lab.material.map = labe
 const orbStart = menuOrb('start', 'START', 0x7fffd4, 0, -0.25, 0.2), orbs = {
   easy: menuOrb('easy', 'EASY', 0x7fe9ff, -0.62, 0.22), normal: menuOrb('normal', 'NORMAL', 0xff9cf0, -0.62, -0.02), beast: menuOrb('beast', 'BEAST', 0xff3355, -0.62, -0.26),
   daily: menuOrb('daily', 'DAILY', 0xffd56a, 0.62, NO_ROOF ? 0.12 : 0.22), gloves: menuOrb('gloves', 'GLOVES', 0xffffff, 0.62, NO_ROOF ? -0.18 : -0.02) };
-if (!NO_ROOF) orbs.scenery = menuOrb('scenery', 'SCENERY', 0xb36bff, 0.62, -0.26);   // vrtest-v20 (Dave t503u)
+if (!NO_ROOF) { orbs.scenery = menuOrb('scenery', 'SCENERY', 0xc77dff, 0.62, -0.28, 0.1); orbs.scenery.lab.scale.set(5.6, 1.4, 1); }   // vrtest-v20 (Dave t503u); v23: bigger, full label   // vrtest-v20 (Dave t503u)
 orbStart.lab.position.y = 1.6; orbStart.lab.scale.set(3.2, 0.8, 1);
 let menuOn = true;
 function showMenu() { menuOn = true; for (const o of menuOrbs) o.g.visible = true; drawMenu(); }
@@ -664,6 +655,7 @@ const mark = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.38, 48), new THREE.Me
 board.m.position.set(PAD.x + 1.6, 1.7, PAD.z - 0.6); board.m.renderOrder = 5;
 // ---------- vrtest-v20 (Dave t504u): FOOTPRINTS. Two glowing shoe-sole outlines where you stand to box, shoulder width apart, toes toward
 // the targets (-Z). One flat additive quad + a 256x256 canvas; faint (not gone) once the round starts. ?nofeet=1 = off.
+let feetShift = null;
 function feetTex() { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), PX = 256 / 0.75;   // 0.75 m square
   const sole = (cx, ang) => { g.save(); g.translate(128 + cx * PX, 128); g.rotate(ang); g.beginPath();
     const L = 0.27 * PX, W = 0.1 * PX;   // ~27 cm long, 10 cm wide; toes up (= -Z on the floor)
@@ -671,6 +663,11 @@ function feetTex() { const c = document.createElement('canvas'); c.width = c.hei
     g.bezierCurveTo(-W * 0.5, L / 2, -W * 0.36, L * 0.22, -W * 0.44, L * 0.06); g.bezierCurveTo(-W * 0.62, -L * 0.12, -W * 0.68, -L / 2, 0, -L / 2); g.closePath();
     g.lineWidth = 5; g.strokeStyle = '#7fffd4'; g.shadowColor = '#18d8ff'; g.shadowBlur = 14; g.stroke(); g.lineWidth = 2; g.shadowBlur = 0; g.strokeStyle = '#ffffff'; g.stroke(); g.restore(); };
   sole(-0.19, -0.12); sole(0.19, 0.12);   // ~38 cm between the centres, toes turned out a little
+  // vrtest-v23 (Dave t510u): centre the drawn outline (its pixel bounds, glow included) exactly on the quad = the standing circle's centre
+  { const d = g.getImageData(0, 0, 256, 256).data; let x0 = 256, y0 = 256, x1 = -1, y1 = -1;
+    for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) if (d[(y * 256 + x) * 4 + 3] > 24) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const dx = Math.round(128 - (x0 + x1 + 1) / 2), dy = Math.round(128 - (y0 + y1 + 1) / 2); feetShift = [dx, dy];
+    if (dx || dy) { const cp = document.createElement('canvas'); cp.width = cp.height = 256; cp.getContext('2d').drawImage(c, 0, 0); g.clearRect(0, 0, 256, 256); g.drawImage(cp, dx, dy); } }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
 const feet = NO_FEET ? null : new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.75), new THREE.MeshBasicMaterial({ map: feetTex(), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
 if (feet) { feet.rotation.x = -Math.PI / 2; feet.position.set(0, 0.016, 0); feet.renderOrder = 3; feet.name = 'nkFeet'; scene.add(feet); }
@@ -830,7 +827,8 @@ function update(dt) {
   const pw = state.power > 0;
   backGlow.material.color.set(pw ? 0xff9a2b : 0x3a2bff); sign.material.opacity = 0.7 + state.beatPulse * 0.3;
   if (roofKit && scenery === 'rooftop') roofKit.update(dt, state.clock, state.beatPulse, pw, root.position);
-  if (feet) { feet.position.set(state.center.x, 0.016, state.center.z); feet.material.opacity = state.mode === 'play' ? 0.16 : 0.62 + state.beatPulse * 0.3; }
+  mark.position.set(state.center.x, 0.012, state.center.z);
+  if (feet) { feet.position.set(mark.position.x, 0.016, mark.position.z); /* vrtest-v23: exactly the standing circle's centre */ feet.material.opacity = state.mode === 'play' ? 0.16 : 0.62 + state.beatPulse * 0.3; }
   if (scenery !== 'rooftop') { const dp = dustGeo.attributes.position.array; for (let i = 0; i < dustN; i++) { dp[i * 3 + 2] += dt * (0.6 + (pw ? 2 : 0)); if (dp[i * 3 + 2] > 3) dp[i * 3 + 2] = -30; } dustGeo.attributes.position.needsUpdate = true; }
   state.hurt = Math.max(0, state.hurt - dt * 2); state.shake = Math.max(0, state.shake - dt * 1.6);
   mark.material.opacity = state.mode === 'play' ? 0.25 : 0.5 + state.beatPulse * 0.4; mark.position.set(state.center.x, 0.012, state.center.z);
@@ -853,7 +851,7 @@ const api = {
   state, tick, startRound, endRound, toTitle, abort, pause, resume, resetRound, punch, duck, setDiff, menuAct, applySkin, scores, drawBoard, bestScore,
   get frames() { return frames; }, get inStudio() { return inStudio; }, get BPM() { return BPM; },
   events: () => state.events, menuOrbs, gloves, glove, board,
-  setScenery, get scenery() { return scenery; }, get sceneryWant() { return sceneryWant; }, scStats, get roofKit() { return roofKit; }, get noRoof() { return NO_ROOF; }, feet,
+  setScenery, get scenery() { return scenery; }, get sceneryWant() { return sceneryWant; }, scStats, get roofKit() { return roofKit; }, get noRoof() { return NO_ROOF; }, feet, mark, get feetShift() { return feetShift; },
   // vrtest-v20: menu orbs the VR pointer can aim at (vr.js pickTarget): world centre + radius + action
   pointOrbs() { if (state.mode === 'play' || !inStudio) return []; return menuOrbs.filter(o => o.g.visible).map(o => ({ id: o.id, p: toWorld(o.pos, new THREE.Vector3()), r: o.r * 1.15, act: () => menuAct(o.id) })); },
   orbWorld(id) { const o = menuOrbs.find(o => o.id === id); return o ? toWorld(o.pos, new THREE.Vector3()) : null; },

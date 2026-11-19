@@ -70,3 +70,15 @@
     when a beam starts, or after 1.5 s. Debug panel line: MOVE <mode> LAST TELEPORT <ms> TPs SNAPS.
   - Kill switch ?oldmove=1 = old smooth walk + smooth turn, no MOVEMENT options.
 - test/vr_comfort_v22.js (31 checks: valid teleport + fade, red/invalid, cancel, exact 30 deg + re-centre, fire menu blocks snap, smooth persists across reload, fade force-clear, ?oldmove=1, no errors).
+
+## vrtest-v23 (Dave t510u / t511u, sw galactic-arcade_vrtest-v23, label MEMORY TEST v23) - Neon Knockout tidy-up (test repo only)
+- Y only in Neon Knockout: during a round Y pauses / resumes (B did too, now ignored); outside a round Y = the menu (B never opened it, R B = gun fire, no gun in NK). Pause panel text "Y = RESUME".
+- SCENERY in VR. Why it was hard to find: the orb existed in XR and was in view, but its label "SCENERY: STUDIO/ROOFTOP" was wider than the 512 px label canvas
+  at 78 px, so it showed clipped ("ENERY: STUD") on the smallest, lowest orb; and in a round the only panel (pause) had no SCENERY (the Y menu only opens outside a round).
+  Fix: labels shrink to fit (all orbs), SCENERY orb bigger (r 0.1, brighter, bigger label); SCENERY button in the Y menu (unchanged slot) AND in the pause panel.
+- Boxing ring removed in both sceneries: white posts, the 3 ropes x 3 sides, the 1.25 m mat-edge torus, and the 1.25 m beat ring line in the studio floor shader.
+  The standing circle (nkStandHere) + footprints, targets, lanes in the studio floor stay.
+- Rooftop floor (nk/rooftop.js): opaque grey weathered concrete: 1.5 m slabs with seams, per-slab tone, wear + aggregate noise, dark stains, a few subtle dark puddles
+  with a faint sky sheen. No neon lanes / beat ring / hot glow on the rooftop. Signs + city unchanged.
+- Footprints: the outline is pixel-centred on its quad (bounds measured at build, shifted) and the quad is set from the standing circle's own position every frame.
+- test/nk_v23.js (16 checks); nk_vr.js updated for Y-only pause.

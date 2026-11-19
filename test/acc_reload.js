@@ -23,8 +23,8 @@ const { open } = require('./lib');
       crown: s.crown || null,
       propeller: s.propeller || null,
       viking: s.viking || null,
-      staleCaches: keys.filter(k => k.indexOf('galactic-arcade_vrtest-') === 0 && k !== 'galactic-arcade_vrtest-v22'),
-      hasV22: keys.includes('galactic-arcade_vrtest-v22'),
+      staleCaches: keys.filter(k => k.indexOf('galactic-arcade_vrtest-') === 0 && k !== 'galactic-arcade_vrtest-v23'),
+      hasV23: keys.includes('galactic-arcade_vrtest-v23'),
     };
   });
 
@@ -43,7 +43,7 @@ const { open } = require('./lib');
     const stale = new Response('window.__GA_ACC_BUILD="stale-v16";window.__gaPlayer={oldAcc:true,accBuild:"stale-v16",accessoryStats:function(){return {crown:{meshes:2,tris:12,mats:1}};}};', { headers: { 'content-type': 'text/javascript' } });
     const c = await caches.open('galactic-arcade_vrtest-v16');
     await c.put(new Request(new URL('player.js', location.href).href), stale.clone());
-    await c.put(new Request(new URL('player.js?v=22', location.href).href), stale.clone());
+    await c.put(new Request(new URL('player.js?v=23', location.href).href), stale.clone());
     await c.put(new Request('player.js'), stale);
   });
 

@@ -349,8 +349,13 @@ export function setupVR(A) {
     const B = [], add = (id, label, x, y, w, h, on, act) => B.push({ id, label, x, y, w, h, on: on !== false, act });
     let title = '', sub = '', body = '';
     add('close', 'X', 900, 22, 100, 90, true, uiClose);
-    if (UI.open === 'nkPause') { B[0].act = nkResume; title = 'PAUSED'; sub = 'B / Y = RESUME · EXIT = BACK TO THE ARCADE · NO TICKETS FOR AN UNFINISHED ROUND';
-      add('nkResume', 'RESUME', 162, 210, 700, 140, true, nkResume); add('nkReset', 'RESET GAME', 162, 390, 700, 140, true, nkReset); add('nkExit', 'EXIT GAME', 162, 570, 700, 140, true, nkExit); }
+    // vrtest-v20 / v23 (Dave t510u): Neon Knockout SCENERY toggle (Y menu + pause panel)
+    const nkSceneryBtn = (x, y, w, h) => { const N = window.__nkGame; if (!(A.tp && A.tp.where === 3 && N && N.setScenery && !N.noRoof)) return false;
+      add('nkScenery', 'SCENERY: ' + (N.sceneryWant !== N.scenery ? 'LOADING…' : N.scenery === 'rooftop' ? 'ROOFTOP' : 'STUDIO'), x, y, w, h, true, () => { const nx = N.sceneryWant === 'rooftop' ? 'studio' : 'rooftop'; N.setScenery(nx).then(() => { UI.key = ''; }); say(nx === 'rooftop' ? 'SCENERY: CYBERPUNK ROOFTOP' : 'SCENERY: NEON STUDIO'); UI.key = ''; });
+      if (N.sceneryWant === 'rooftop') B[B.length - 1].sel = true; return true; };
+    if (UI.open === 'nkPause') { B[0].act = nkResume; title = 'PAUSED'; sub = 'Y = RESUME · EXIT = BACK TO THE ARCADE · NO TICKETS FOR AN UNFINISHED ROUND';
+      add('nkResume', 'RESUME', 162, 200, 700, 116, true, nkResume); add('nkReset', 'RESET GAME', 162, 336, 700, 116, true, nkReset); add('nkExit', 'EXIT GAME', 162, 472, 700, 116, true, nkExit);
+      nkSceneryBtn(162, 608, 700, 100); }   // vrtest-v23: SCENERY in the pause panel too
     if (UI.open === 'tickets') { const K = kiosk(); title = 'TICKET EXCHANGE';
       if (!K) sub = 'NOT READY'; else { const bal = K.C.bal, left = Math.max(0, Math.ceil((K.C.at + 36e5 - Date.now()) / 6e4));
         sub = 'CASH $' + bal + (bal < 5 ? '  ·  +$' + (5 - bal) + ' IN ' + left + ' MIN' : '');
@@ -426,7 +431,7 @@ export function setupVR(A) {
       // v14 (t396u): voice chat. MIC ON asks for the mic (only on this tap), then the same button mutes / unmutes; ✕ VC leaves voice
       const vc = window.__voice, vin = !!(vc && vc.state !== 'off');
       const N = window.__nkGame, inNK = !!(tp && tp.where === 3 && N && N.setScenery && !N.noRoof);   // vrtest-v20 (Dave t503u): in Neon Knockout this slot = SCENERY
-      if (inNK) { add('nkScenery', 'SCENERY: ' + (N.sceneryWant !== N.scenery ? 'LOADING…' : N.scenery === 'rooftop' ? 'ROOFTOP' : 'STUDIO'), 70, 620, 520, 100, true, () => { const nx = N.sceneryWant === 'rooftop' ? 'studio' : 'rooftop'; N.setScenery(nx).then(() => { UI.key = ''; }); say(nx === 'rooftop' ? 'SCENERY: CYBERPUNK ROOFTOP' : 'SCENERY: NEON STUDIO'); UI.key = ''; }); if (N.sceneryWant === 'rooftop') B[B.length - 1].sel = true; }
+      if (inNK) nkSceneryBtn(70, 620, 520, 100);
       else if (!inShop) add('nb', 'PLAY NEON BRICKS', 70, 620, 520, 100, !!nbApi(), nbStart);
       else add('shop', 'PRIZE SHOP', 70, 620, 520, 100, !!A.shop, () => uiOpen('shop'));
       add('mic', vc ? vc.label() : 'MIC ON', 610, 620, vin ? 224 : 344, 100, !!vc, vcTap); if (vc && vc.state === 'on') B[B.length - 1].sel = !vc.muted;
@@ -1471,7 +1476,8 @@ export function setupVR(A) {
       if (n.zoomAmt) n.setZoomAmt(0);
     } else if (mode === 'walk') {
       if (nkRound()) {   // v23 (Dave t421u): Neon Knockout round: B or Y pauses / resumes (GRIP does nothing); the pause panel stays up until a choice
-        if (anyP('bDown')) { if (nkPaused()) nkResume(); else nkPause(); pulse((L && L.bDown ? L : R).src, 0.6, 40); }
+        if (L && L.bDown) { if (nkPaused()) nkResume(); else nkPause(); pulse(L.src, 0.6, 40); }   // vrtest-v23 (Dave t510u): Y only (B no longer pauses / opens a menu in NK)
+        else if (R && R.bDown) S.nkBIgnored = (S.nkBIgnored || 0) + 1;   // (test counter)
         else if (nkPaused() && UI.open !== 'nkPause') uiOpen('nkPause'); }
       else if (L && L.bDown && !(A.tp && A.tp.locked) && !nkPlaying()) { if (UI.open) uiClose(); else uiOpen('menu'); }   // v25 (Dave t442u): Y (left) = menu, always; B (right) = the laser pistol's FIRE (gear()), nothing without the gun
       else if (anyP('gripDown') && UI.open) { uiClose(); S.backs.menu++; pulse((L && L.gripDown ? L : R).src, 0.5, 30); }   // v12 (t382u): GRIP (short press) = back: closes any panel (menu, shop, accessories, tickets, chat, pack)
