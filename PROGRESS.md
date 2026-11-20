@@ -106,3 +106,8 @@
   NK has no snap turn (the comfort locomotion is off in NK); the existing smooth turn is already off while the hologram is open. Y-only pause / menu unchanged; B still nothing.
 - PUNCH mode: unchanged except the left-column orb heights.
 - test/nk_v25.js (29 checks).
+
+## MOVED: this link is now a redirect to https://optimusgrok.github.io/nebula-arcade-vr-test/ (Galactic Arcade VR renamed to Nebula Arcade)
+- index.html = redirect page (meta refresh + location.replace keeping query + hash + a visible link); it also unregisters this link's own worker and deletes its own caches.
+- sw.js = self-destructing worker: install skipWaiting; activate deletes ONLY this link's caches, unregisters itself, navigates its windows to the new link; fetch = network.
+- The game files are kept in history / the tree, but nothing links to them any more. Development continues in OptimusGrok/nebula-arcade-vr-test.
