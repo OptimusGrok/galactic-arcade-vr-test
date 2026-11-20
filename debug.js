@@ -7,7 +7,7 @@
    Off by default; saved in localStorage galacticarcade.vrDebug; ?debug=1 turns it on. When off: no per-frame hook, no timers, no redraws
    (only console.error / error events are kept in a 5-entry ring, which costs nothing unless an error happens). */
 (function () {
-  var TEST_BUILD = true, VERSION = 'vrtest-v23', KEY = 'galacticarcade.vrDebug';
+  var TEST_BUILD = true, VERSION = 'vrtest-v24', KEY = 'galacticarcade.vrDebug';
   var host = location.hostname, path = location.pathname;
   if (!TEST_BUILD || !(/\/galactic-arcade-vr-test(\/|$)/.test(path) || host === 'localhost' || host === '127.0.0.1')) return;
   var ERR = [], errN = 0;
@@ -53,7 +53,7 @@
       'WHERE ' + s.where, mvLine(), 'LAST BEAM ' + (s.beamMs == null ? '—' : s.beamMs + ' ms (worst frame ' + s.beamWorst + ' ms' + (s.beamDest != null ? ', to ' + s.beamDest : '') + ')'),
       'ERRORS ' + errN + (ERR.length ? ':' : ' · none')];
     for (var i = ERR.length - 1; i >= 0; i--) L.push('• ' + ERR[i].s); return L; }
-  function mvLine() { var c = null; try { c = window.__gaVR && window.__gaVR.comfort && window.__gaVR.comfort(); } catch (e) {}   // vrtest-v23
+  function mvLine() { var c = null; try { c = window.__gaVR && window.__gaVR.comfort && window.__gaVR.comfort(); } catch (e) {}   // vrtest-v24
     return c ? 'MOVE ' + String(c.mode).toUpperCase() + '   LAST TELEPORT ' + (c.lastTpMs == null ? '—' : c.lastTpMs + ' ms') + '   TPs ' + c.tps + '   SNAPS ' + c.snaps : 'MOVE —'; }
   D.lines = lines;
   // ---- flat corner HUD ----

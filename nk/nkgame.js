@@ -6,7 +6,7 @@
 // uses different localStorage keys (neonko.*); this copy uses gaNK.*.
 import * as THREE from 'three';
 import { gloveSkin, gloveState, ownsGlove, wearGlove, gloveIds } from '../nkgloves.js';
-import { buildRooftop } from './rooftop.js?v=23';
+import { buildRooftop } from './rooftop.js?v=24';
 
 export const NK_DIFF = {
   easy: { label: 'EASY', bpm: 110, travel: 2.5, duck: 8, mix: 0.6, mult: 0.6 },
@@ -471,13 +471,18 @@ function drawCenterPanel(lines) {
 const mutedNow = () => !!(window.__muted || (window.__mute && window.__mute.on));
 const _w = new THREE.Vector3(), _w2 = new THREE.Vector3();
 const toWorld = (v, out = _w) => out.copy(v).add(root.position);
+const PANEL_VR = { score: 43, kcal: 68, d: 2.1, dy: 0.38 };   // degrees left of facing, metres, metres above head height (was: +-29 deg, 1.95 m, h + 0.05)
 function placePanels() {
   const c = state.center, h = state.headH;
   panelL.m.visible = panelR.m.visible = state.mode === 'play';
-  const dz = state.vr ? 1.7 : 2.4, dx = state.vr ? 0.95 : 1.4, y = h + (state.vr ? 0.05 : 0.35);
   const look = toWorld(_w2.set(c.x, h, c.z + (state.vr ? 0 : 2.5)), new THREE.Vector3());
-  panelL.m.position.set(c.x - dx, y, c.z - dz); panelL.m.updateMatrixWorld(); panelL.m.lookAt(look);
-  panelR.m.position.set(c.x + dx, y, c.z - dz); panelR.m.updateMatrixWorld(); panelR.m.lookAt(look);
+  if (state.vr) {   // vrtest-v24 (Dave t513u): SCORE + CALORIES both on the player's LEFT, side by side around ~55 deg left of facing (-Z), 2.1 m from the
+    // standing spot (follows the round-start calibration), raised so their lower edge (h + 0.10) clears the duck bar (h - 0.05, sheath to h + 0.06) and its posts
+    for (const [P, a] of [[panelL, PANEL_VR.score], [panelR, PANEL_VR.kcal]]) { const r = a * Math.PI / 180;
+      P.m.position.set(c.x - Math.sin(r) * PANEL_VR.d, h + PANEL_VR.dy, c.z - Math.cos(r) * PANEL_VR.d); P.m.updateMatrixWorld(); P.m.lookAt(toWorld(_w2.set(c.x, h, c.z), new THREE.Vector3())); }
+  } else { const dz = 2.4, dx = 1.4, y = h + 0.35;
+    panelL.m.position.set(c.x - dx, y, c.z - dz); panelL.m.updateMatrixWorld(); panelL.m.lookAt(look);
+    panelR.m.position.set(c.x + dx, y, c.z - dz); panelR.m.updateMatrixWorld(); panelR.m.lookAt(look); }
   panelC.m.position.set(c.x, h + 0.35, c.z - 2.2); panelC.m.updateMatrixWorld(); panelC.m.lookAt(look);
 }
 function targetPos(t, now, out) {
@@ -569,6 +574,7 @@ function startRound(opts = {}) {
   initAudio(); state.vr = ENV.isVR();
   if (state.vr) calibrate(); else { const f = ENV.flatPlace(); state.center.copy(f.center); state.headH = f.headH; }
   resetRun(); state.mode = 'play'; state.paused = false; state.countBeat = -1; state.result = null; state.rounds++;
+  placePanels();   // vrtest-v24: boards jump to the calibrated spot at once (not up to 0.1 s later)
   panelC.m.visible = false; hideMenu(); ui(); ENV.setHide({ models: true, rays: true });
   for (const s of ['L', 'R']) { glove[s].punch = null; if (!state.vr) glove[s].obj.position.copy(restOf(s, _v)); }
   return true;
@@ -850,7 +856,7 @@ if (!NO_ROOF && lsGet(SC_KEY, 'studio') === 'rooftop') setScenery('rooftop', { s
 const api = {
   state, tick, startRound, endRound, toTitle, abort, pause, resume, resetRound, punch, duck, setDiff, menuAct, applySkin, scores, drawBoard, bestScore,
   get frames() { return frames; }, get inStudio() { return inStudio; }, get BPM() { return BPM; },
-  events: () => state.events, menuOrbs, gloves, glove, board,
+  events: () => state.events, menuOrbs, gloves, glove, board, panelL, panelR, PANEL_VR, BARS, targetPos,
   setScenery, get scenery() { return scenery; }, get sceneryWant() { return sceneryWant; }, scStats, get roofKit() { return roofKit; }, get noRoof() { return NO_ROOF; }, feet, mark, get feetShift() { return feetShift; },
   // vrtest-v20: menu orbs the VR pointer can aim at (vr.js pickTarget): world centre + radius + action
   pointOrbs() { if (state.mode === 'play' || !inStudio) return []; return menuOrbs.filter(o => o.g.visible).map(o => ({ id: o.id, p: toWorld(o.pos, new THREE.Vector3()), r: o.r * 1.15, act: () => menuAct(o.id) })); },

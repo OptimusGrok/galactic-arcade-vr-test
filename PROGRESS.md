@@ -82,3 +82,12 @@
   with a faint sky sheen. No neon lanes / beat ring / hot glow on the rooftop. Signs + city unchanged.
 - Footprints: the outline is pixel-centred on its quad (bounds measured at build, shifted) and the quad is set from the standing circle's own position every frame.
 - test/nk_v23.js (16 checks); nk_vr.js updated for Y-only pause.
+
+## vrtest-v24 (Dave t513u, sw galactic-arcade_vrtest-v24, label MEMORY TEST v24)
+- NK VR round boards: SCORE (panelL) + CALORIES (panelR) were 29 deg left / 29 deg right of facing, 1.95 m, head height + 0.05.
+  Now BOTH on the LEFT: SCORE 43 deg, CALORIES 68 deg (centre of the pair ~55 deg), 2.1 m from the standing spot, head height + 0.38 (lower edge + 0.10, above the
+  duck bar + sheath at + 0.06 and its posts), each turned to face the head. Both sceneries; placed from the calibrated standing spot at round start (now at once, was up to 0.1 s later).
+  Flat (non-VR) layout unchanged. Tunable: PANEL_VR in nk/nkgame.js.
+- Wrist HUD bug: pointing the ray at an NK menu orb (hover target 'nkOrb_<id>') had no entry in the HUD's hint table, so line 2 read "undefined" (ticket count on line 1 was fine).
+  Now "TRIGGER: <orb label>" (e.g. TRIGGER: SCENERY: STUDIO), and any unknown target falls back to "TRIGGER: SELECT".
+- test/nk_v24.js: angle / distance / height / facing per board, bar + post clearance, punch reach, every target path (20 cm margin), menu orbs, both sceneries, HUD text.

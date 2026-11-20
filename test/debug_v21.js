@@ -20,7 +20,7 @@ const { open } = require('./lib'); const { openVR, H, IWER_SRC, SETUP } = requir
     await sleep(1500); s = await st();
     chk(s.on && s.hook && s.hud && s.btn === 'DEBUG: ON' && !s.autoReset, 'OPTIONS -> DEBUG turns it on (corner HUD)', { on: s.on, hud: s.hud, btn: s.btn });
     const v = s.stats; chk(v && v.fps > 0 && v.ms > 0 && v.worst >= v.ms && v.calls > 0 && v.tris > 0 && v.tex > 0 && v.geo > 0 && v.prog > 0 && v.tier && /ARCADE/.test(v.where), 'values: fps / frame / worst / draws / tris / tex / geo / programs / tier / where', v);
-    chk(/HEAP \d+ \/ \d+ MB|HEAP n\/a/.test(s.txt) && /vrtest-v23/.test(s.txt), 'HUD text shows heap + version', s.txt.split('\n').slice(0, 3));
+    chk(/HEAP \d+ \/ \d+ MB|HEAP n\/a/.test(s.txt) && /vrtest-v24/.test(s.txt), 'HUD text shows heap + version', s.txt.split('\n').slice(0, 3));
     const r0 = s.redraws; await sleep(2000); s = await st(); const rps = (s.redraws - r0) / 2;
     chk(rps > 0 && rps <= 4.5, 'HUD redraws at most ~4 / s', rps);
     const on = await cpu(3000); console.log('INFO frame cost off ' + JSON.stringify(off) + ' on ' + JSON.stringify(on));
