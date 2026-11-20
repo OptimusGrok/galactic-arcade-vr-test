@@ -6,7 +6,7 @@
 // uses different localStorage keys (neonko.*); this copy uses gaNK.*.
 import * as THREE from 'three';
 import { gloveSkin, gloveState, ownsGlove, wearGlove, gloveIds } from '../nkgloves.js';
-import { buildRooftop } from './rooftop.js?v=24';
+import { buildRooftop } from './rooftop.js?v=25';
 
 export const NK_DIFF = {
   easy: { label: 'EASY', bpm: 110, travel: 2.5, duck: 8, mix: 0.6, mult: 0.6 },
@@ -474,7 +474,7 @@ const toWorld = (v, out = _w) => out.copy(v).add(root.position);
 const PANEL_VR = { score: 43, kcal: 68, d: 2.1, dy: 0.38 };   // degrees left of facing, metres, metres above head height (was: +-29 deg, 1.95 m, h + 0.05)
 function placePanels() {
   const c = state.center, h = state.headH;
-  panelL.m.visible = panelR.m.visible = state.mode === 'play';
+  panelL.m.visible = state.mode === 'play'; panelR.m.visible = state.mode === 'play' && !shootOn();   // v25: no CALORIES board in SHOOT
   const look = toWorld(_w2.set(c.x, h, c.z + (state.vr ? 0 : 2.5)), new THREE.Vector3());
   if (state.vr) {   // vrtest-v24 (Dave t513u): SCORE + CALORIES both on the player's LEFT, side by side around ~55 deg left of facing (-Z), 2.1 m from the
     // standing spot (follows the round-start calibration), raised so their lower edge (h + 0.10) clears the duck bar (h - 0.05, sheath to h + 0.06) and its posts
@@ -496,14 +496,14 @@ function addPower(v) {
   state.powerMeter = clamp((state.powerMeter || 0) + v, 0, 1);
   if (state.powerMeter >= 1) { state.power = 1; state.powerT = POWER_TIME; state.powerMeter = 0; sfx.power(); popup('POWER MODE!', '#ffc94a', _v.set(state.center.x, state.headH + 0.45, hitZ() - 0.6), 1.5); flashFx(_v, COL.gold, 4); state.shake = 0.4; }
 }
-function scoreHit(t, side, quality, speed) {
-  const isC = t.type === 'C', off = !isC && t.type !== side;
+function scoreHit(t, side, quality, speed, shot) {
+  const isC = t.type === 'C', off = !shot && !isC && t.type !== side;
   const q = quality >= 2 ? 1.5 : quality >= 1 ? 1.2 : 1.0;
   const base = isC ? 250 : 100;
   if (!state.autoplay) {
     if (off) { state.score += Math.round(base * 0.5); state.hits++; }
     else { state.streak++; state.maxStreak = Math.max(state.maxStreak, state.streak); state.score += Math.round(base * q * mult()); state.hits++; if (quality >= 2) state.perfect++; }
-    state.punches++; state.kcal += 0.14 + (speed ? clamp(speed - 1.5, 0, 4) * 0.03 : 0) + (isC ? 0.05 : 0);
+    if (shot) state.shotHits = (state.shotHits || 0) + 1; else state.punches++; if (!shootOn()) state.kcal += 0.14 + (speed ? clamp(speed - 1.5, 0, 4) * 0.03 : 0) + (isC ? 0.05 : 0);
     if (!off) addPower(isC ? 0.16 : quality >= 2 ? 0.08 : 0.06);
   }
   const p = t.pos, color = isC ? COL.C : COL[t.type], pw = state.power > 0;
@@ -517,7 +517,7 @@ function scoreHit(t, side, quality, speed) {
   if (!state.autoplay || Math.random() < 0.3) popup(isC && !off ? 'CRYSTAL!' : lbl[0], isC && !off ? '#bff6ff' : lbl[1], _v.copy(p).add(_v2.set(0, 0.18, 0)), isC ? 1.2 : 1);
   isC ? sfx.crystal() : (!state.autoplay && sfx.hit(q, pw));
   state.shake = Math.max(state.shake, isC ? 0.18 : 0.08);
-  const src = glove[side].src; if (src && src.gamepad && src.gamepad.hapticActuators && src.gamepad.hapticActuators[0]) { try { src.gamepad.hapticActuators[0].pulse(isC ? 1 : 0.7, isC ? 90 : 50); } catch (e) {} }
+  const src = glove[shot ? 'R' : side].src; if (src && src.gamepad && src.gamepad.hapticActuators && src.gamepad.hapticActuators[0]) { try { src.gamepad.hapticActuators[0].pulse(isC ? 1 : 0.7, isC ? 90 : 50); } catch (e) {} }
   t.alive = false; t.claimed = true; t.dying = 0.0001; t.m.g.visible = false; t.m.refl.visible = false;
 }
 function missTarget(t) {
@@ -562,7 +562,7 @@ function updPunchAnim(side, dt) {
 // ---------- round flow ----------
 function resetRun() {
   targets.forEach(freeTarget); targets = [];
-  Object.assign(state, { t: 0, score: 0, streak: 0, maxStreak: 0, hits: 0, misses: 0, perfect: 0, dodges: 0, bumps: 0, punches: 0, kcal: 0, power: 0, powerT: 0, powerMeter: 0, evIdx: 0, duckT: 0, whiffs: 0 });
+  Object.assign(state, { t: 0, score: 0, streak: 0, maxStreak: 0, hits: 0, misses: 0, perfect: 0, dodges: 0, bumps: 0, punches: 0, shots: 0, shotHits: 0, kcal: 0, power: 0, powerT: 0, powerMeter: 0, evIdx: 0, duckT: 0, whiffs: 0 });
   const diff = state.daily ? 'normal' : state.diff; setTempo(diff);
   state.events = buildSchedule(ROUND_LEN, diff, state.daily ? daySeed(dayKey()) : (Date.now() % 100000) + 1); lastSched = -1;
   state.lastT = state.events.length ? state.events[state.events.length - 1].t : 0;
@@ -620,6 +620,14 @@ function drawBoard() { const g = board.g; holoFrame(g, 600, 480, '#ffd56a');
 const menuOrbs = [];
 const QS = (() => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(); } })();
 const NO_ROOF = QS.get('norooftop') === '1', NO_FEET = QS.get('nofeet') === '1';
+// vrtest-v25 (Dave t514u): MODE: PUNCH (default) / SHOOT. In SHOOT (VR) the right hand holds the arcade's laser blaster, the trigger fires
+// (vr.js runs the five fire types and calls shootRay()), hits score like punches; calories are hidden + not counted. ?noshootmode=1 = punch only.
+const NO_SHOOT = QS.get('noshootmode') === '1', MODE_KEY = 'galacticarcade.nkMode';
+let nkMode = NO_SHOOT ? 'punch' : (lsGet(MODE_KEY, 'punch') === 'shoot' ? 'shoot' : 'punch');
+const shootOn = () => nkMode === 'shoot';
+const modeLabel = () => 'MODE: ' + (nkMode === 'shoot' ? 'SHOOT' : 'PUNCH');
+function setMode(m) { if (NO_SHOOT) return nkMode; nkMode = m === 'shoot' ? 'shoot' : 'punch'; lsSet(MODE_KEY, nkMode); state.modeSwitches = (state.modeSwitches || 0) + 1;
+  if (state.mode === 'play') placePanels(); drawMenu(); ui(); try { if (window.__gaNkModeSync) window.__gaNkModeSync(); } catch (e) {} return nkMode; }
 const MENU_Z = -1.25, MENU_H = 1.4;   // v23: VR menu orbs' plane = the far edge of the 1.25 m ground circle (studio -Z), fixed height
 function menuOrb(id, label, color, dx, dy, r = 0.085) {
   const g = new THREE.Group(); g.name = 'nkOrb_' + id;
@@ -630,8 +638,9 @@ function menuOrb(id, label, color, dx, dy, r = 0.085) {
   g.scale.setScalar(r); scene.add(g); const o = { id, label, color, g, lab, core, halo, dx, dy, r, pos: new THREE.Vector3(), alive: true, type: 'M' }; menuOrbs.push(o); setOrbLabel(o, label); return o; }
 function setOrbLabel(o, label, col) { o.label = label; o.lab.material.map = labelTexture(label, col || '#' + new THREE.Color(o.color).getHexString()); o.lab.material.needsUpdate = true; }
 const orbStart = menuOrb('start', 'START', 0x7fffd4, 0, -0.25, 0.2), orbs = {
-  easy: menuOrb('easy', 'EASY', 0x7fe9ff, -0.62, 0.22), normal: menuOrb('normal', 'NORMAL', 0xff9cf0, -0.62, -0.02), beast: menuOrb('beast', 'BEAST', 0xff3355, -0.62, -0.26),
+  easy: menuOrb('easy', 'EASY', 0x7fe9ff, -0.62, NO_SHOOT ? 0.22 : 0.34), normal: menuOrb('normal', 'NORMAL', 0xff9cf0, -0.62, NO_SHOOT ? -0.02 : 0.11), beast: menuOrb('beast', 'BEAST', 0xff3355, -0.62, NO_SHOOT ? -0.26 : -0.12),
   daily: menuOrb('daily', 'DAILY', 0xffd56a, 0.62, NO_ROOF ? 0.12 : 0.22), gloves: menuOrb('gloves', 'GLOVES', 0xffffff, 0.62, NO_ROOF ? -0.18 : -0.02) };
+if (!NO_SHOOT) { orbs.mode = menuOrb('mode', modeLabel(), 0x48f2ff, -0.62, -0.35, 0.1); orbs.mode.lab.scale.set(5.6, 1.4, 1); }   // vrtest-v25
 if (!NO_ROOF) { orbs.scenery = menuOrb('scenery', 'SCENERY', 0xc77dff, 0.62, -0.28, 0.1); orbs.scenery.lab.scale.set(5.6, 1.4, 1); }   // vrtest-v20 (Dave t503u); v23: bigger, full label   // vrtest-v20 (Dave t503u)
 orbStart.lab.position.y = 1.6; orbStart.lab.scale.set(3.2, 0.8, 1);
 let menuOn = true;
@@ -641,6 +650,7 @@ function menuAct(id) { state.menuHits = (state.menuHits || 0) + 1; state.lastMen
   if (id === 'start') return startRound();
   if (id === 'daily') { state.daily = !state.daily; drawMenu(); ui(); return true; }
   if (id === 'gloves') { const own = gloveIds().filter(ownsGlove), i = own.indexOf(state.skin); const nx = own[(i + 1) % own.length]; wearGlove(nx); applySkin(nx); ui(); return true; }
+  if (id === 'mode') { setMode(shootOn() ? 'punch' : 'shoot'); return true; }
   if (id === 'scenery') { setScenery(scenery === 'rooftop' || sceneryWant === 'rooftop' ? 'studio' : 'rooftop'); return true; }
   if (NK_DIFF[id]) { setDiff(id); return true; } }
 function drawMenu() { if (state.mode === 'play') return;
@@ -648,6 +658,7 @@ function drawMenu() { if (state.mode === 'play') return;
   const done = lsGet('gaNK.dailyDone', '') === dayKey(); setOrbLabel(orbs.daily, (state.daily ? '▶ ' : '') + 'DAILY' + (done ? ' ✓' : ' +' + DAILY_BONUS)); orbs.daily.core.material.opacity = state.daily ? 1 : 0.35;
   setOrbLabel(orbs.gloves, 'GLOVES: ' + gloveSkin(state.skin).name.toUpperCase()); orbs.gloves.core.material.color.set(gloveSkin(state.skin).glow);
   if (orbs.scenery) setOrbLabel(orbs.scenery, sceneryLabel());
+  if (orbs.mode) setOrbLabel(orbs.mode, modeLabel());
   if (state.mode === 'title') { const d = state.daily ? 'DAILY ROUTINE ' + dayKey() : NK_DIFF[state.diff].label + ' · ' + NK_DIFF[state.diff].bpm + ' BPM';
     drawCenterPanel([['NEON KNOCKOUT', 58, 62, '#ffffff'], ['Punch cyan orbs with your LEFT glove', 128, 26, '#7fe9ff'], ['Punch pink orbs with your RIGHT glove', 166, 26, '#ff9cf0'], ['Smash crystals with either • DUCK red bars', 204, 26, '#ffd56a'],
       [d, 262, 32, '#ffe14a'], ['Earn arcade tickets by grade', 306, 24, '#9ff8ff'], [state.vr ? 'Punch START to play · punch the side orbs to pick' : 'Press START (or ENTER) · F / J punch · SPACE ducks', 352, 24, '#ffffff']]); panelC.m.visible = true; } }
@@ -713,8 +724,31 @@ function placeBoard() { board.m.updateMatrixWorld(); board.m.lookAt(toWorld(_w2.
 // ---------- VR: the arcade's controllers are the gloves ----------
 const _gq = new THREE.Quaternion(), _gp = new THREE.Vector3(), _go = new THREE.Vector3(0, -0.01, 0.03);
 function vrGloves() { for (const s of ['L', 'R']) { const G = glove[s], gp = ENV.grip(s === 'L' ? 'left' : 'right'); G.on = !!gp; G.obj.visible = !!gp; G.src = gp ? gp.src : null; if (!gp) continue;
-    gp.obj.updateMatrixWorld(true); gp.obj.matrixWorld.decompose(_gp, _gq, _w2); G.obj.quaternion.copy(_gq); G.obj.position.copy(_go).applyQuaternion(_gq).add(_gp).sub(root.position); } }
+    gp.obj.updateMatrixWorld(true); gp.obj.matrixWorld.decompose(_gp, _gq, _w2); G.obj.quaternion.copy(_gq); G.obj.position.copy(_go).applyQuaternion(_gq).add(_gp).sub(root.position);
+    if (s === 'R') { const b = shootOn() && state.vr ? blasterGet() : null; if (b) { G.obj.visible = false; b.visible = true; b.quaternion.copy(_gq).multiply(BL_Q); b.position.copy(BL_OFF).applyQuaternion(_gq).add(_gp).sub(root.position); } else if (BL.m) BL.m.visible = false; } } }
+// vrtest-v25: the arcade's laser blaster (player.js's pistol model, cloned once) in the right hand in SHOOT. Barrel (+Z of the model) along the grip's -Z.
+const BL = { m: null, muzzle: null, tried: false }, BL_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI), BL_OFF = new THREE.Vector3(0, 0.035, 0.02), BL_S = 0.45;
+function blasterGet() { if (BL.m || BL.tried) return BL.m; BL.tried = true; let c = null;
+  try { const P = window.__gaPlayer; c = P && P.previewItem ? P.previewItem('hand', 'pistol') : null; } catch (e) { c = null; }
+  if (!c) { c = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.5), new THREE.MeshBasicMaterial({ color: 0x3a4558 })); body.position.z = 0.25; c.add(body);
+    const mz = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 8), new THREE.MeshBasicMaterial({ color: 0x48f2ff })); mz.rotation.x = Math.PI / 2; mz.position.set(0, 0.03, 0.6); mz.name = 'gaPistolMuzzle'; c.add(mz); }
+  c.name = 'nkBlaster'; c.scale.setScalar(BL_S); c.traverse(o => { o.frustumCulled = false; if (o.name === 'gaPistolMuzzle') { o.name = 'nkBlasterMuzzle'; BL.muzzle = o; } });
+  c.visible = false; scene.add(c); BL.m = c; return c; }
+// vrtest-v25: a blaster shot = a ray (world o, d) against the live targets (sphere test, a dozen targets: cheap). Bolts / beams hit the nearest
+// target (the beam: every target it touches, each frame). Timing: PERFECT when the target is about to reach you, GREAT mid-way, GOOD far out.
+const SHOT_RANGE = 26, _ro = new THREE.Vector3(), _rd = new THREE.Vector3(), _rv = new THREE.Vector3();
+function shootRay(o, d, opts = {}) { if (!shootOn() || state.mode !== 'play' || state.paused) return null;
+  _ro.set(o[0], o[1], o[2]).sub(root.position); _rd.set(d[0], d[1], d[2]).normalize();
+  const k = opts.k || 0, beam = opts.kind === 'beam', pad = opts.kind === 'charge' ? 0.06 + k * 0.25 : beam ? 0.05 : 0.07;
+  let best = null, bd = SHOT_RANGE, hits = 0; if (!beam) state.shots++;
+  for (const t of targets) { if (t.type === 'BAR' || !t.alive || t.claimed) continue; _rv.copy(t.pos).sub(_ro); const along = _rv.dot(_rd); if (along < 0 || along > SHOT_RANGE) continue;
+    const r = t.r + pad; if (_rv.lengthSq() - along * along > r * r) continue;
+    if (beam) { shotHit(t); hits++; } else if (along < bd) { bd = along; best = t; } }
+  if (best) { shotHit(best); hits++; }
+  return { hits, dist: best ? bd : null }; }
+function shotHit(t) { const rem = t.t - state.t, q = rem < 0.35 ? 2 : rem < 0.9 ? 1 : 0; scoreHit(t, t.type === 'C' ? 'R' : t.type, q, 0, true); }
 function vrHits() {
+  if (shootOn() && state.mode === 'play') return;   // v25: SHOOT round: the blaster scores (shootRay), no punching
   ['L', 'R'].forEach(side => {
     const g = glove[side]; if (!g.on) return;
     const list = state.mode === 'play' ? targets : menuOrbs;
@@ -776,7 +810,7 @@ function update(dt) {
     if (!mutedNow()) schedMusic(now, 0.25); if (master) master.gain.value = mutedNow() ? 0 : 0.8;
     const cb = Math.floor(now / BEAT);
     if (cb !== state.countBeat && cb < 8 && cb >= 4) { state.countBeat = cb; const lbl = ['3', '2', '1', 'GO!'][cb - 4]; popup(lbl, cb === 7 ? '#ffd56a' : '#7fe9ff', _v.set(state.center.x, state.headH + 0.25, hitZ() - 1.2), 1.6); sfx.count(cb === 7); }
-    state.kcal += dt * (3.6 / 60) * (state.vr ? 1.2 : 1);
+    if (!shootOn()) state.kcal += dt * (3.6 / 60) * (state.vr ? 1.2 : 1);
     if (state.power > 0) { state.powerT -= dt; if (state.powerT <= 0) { state.power = 0; state.powerT = 0; } }
     if (now > Math.max(ROUND_LEN, state.lastT + 1.2)) { endRound(); return; }
     while (state.evIdx < state.events.length && state.events[state.evIdx].t - now <= TRAVEL) { spawnTarget(state.events[state.evIdx]); state.evIdx++; }
@@ -794,7 +828,7 @@ function update(dt) {
       if (t.alive && now >= t.t) {
         t.alive = false;
         const ducked = state.vr ? headY() < state.headH - 0.22 : state.duckT > 0.05;
-        if (ducked) { state.dodges++; state.score += 50 * mult(); state.kcal += 0.45; popup('DODGE!', '#7fe9ff', _v.set(p.x, state.headH + 0.3, p.z - 1.5), 1.1); sfx.dodge(); addPower(0.05); }
+        if (ducked) { state.dodges++; state.score += 50 * mult(); if (!shootOn()) state.kcal += 0.45; popup('DODGE!', '#7fe9ff', _v.set(p.x, state.headH + 0.3, p.z - 1.5), 1.1); sfx.dodge(); addPower(0.05); }
         else { state.bumps++; state.streak = 0; state.hurt = 1; state.shake = 0.5; popup('DUCK!', '#ff4d6d', _v.set(p.x, state.headH + 0.25, p.z - 1.5), 1.2); sfx.bump(); }
       }
       if (now > t.t + 1.0) { freeTarget(t); targets.splice(i, 1); }
@@ -857,6 +891,8 @@ const api = {
   state, tick, startRound, endRound, toTitle, abort, pause, resume, resetRound, punch, duck, setDiff, menuAct, applySkin, scores, drawBoard, bestScore,
   get frames() { return frames; }, get inStudio() { return inStudio; }, get BPM() { return BPM; },
   events: () => state.events, menuOrbs, gloves, glove, board, panelL, panelR, PANEL_VR, BARS, targetPos,
+  get mode() { return nkMode; }, setMode, get noShoot() { return NO_SHOOT; }, shootRay, get blaster() { return BL.m; }, blasterMuzzle(out) { return BL.m && BL.m.visible && BL.muzzle ? BL.muzzle.getWorldPosition(out) : null; },
+  liveTargets() { return targets.filter(t => t.type !== 'BAR' && t.alive && !t.claimed).map(t => ({ type: t.type, p: toWorld(t.pos, new THREE.Vector3()).toArray(), r: t.r, dt: t.t - state.t })); },
   setScenery, get scenery() { return scenery; }, get sceneryWant() { return sceneryWant; }, scStats, get roofKit() { return roofKit; }, get noRoof() { return NO_ROOF; }, feet, mark, get feetShift() { return feetShift; },
   // vrtest-v20: menu orbs the VR pointer can aim at (vr.js pickTarget): world centre + radius + action
   pointOrbs() { if (state.mode === 'play' || !inStudio) return []; return menuOrbs.filter(o => o.g.visible).map(o => ({ id: o.id, p: toWorld(o.pos, new THREE.Vector3()), r: o.r * 1.15, act: () => menuAct(o.id) })); },

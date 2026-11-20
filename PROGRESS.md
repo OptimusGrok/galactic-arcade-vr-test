@@ -91,3 +91,18 @@
 - Wrist HUD bug: pointing the ray at an NK menu orb (hover target 'nkOrb_<id>') had no entry in the HUD's hint table, so line 2 read "undefined" (ticket count on line 1 was fine).
   Now "TRIGGER: <orb label>" (e.g. TRIGGER: SCENERY: STUDIO), and any unknown target falls back to "TRIGGER: SELECT".
 - test/nk_v24.js: angle / distance / height / facing per board, bar + post clearance, punch reach, every target path (20 cm margin), menu orbs, both sceneries, HUD text.
+
+## vrtest-v25 (Dave t514u, sw galactic-arcade_vrtest-v25, label MEMORY TEST v25) - Neon Knockout MODE: PUNCH / SHOOT
+- Option: MODE orb in the studio menu (left column under BEAST; EASY / NORMAL / BEAST moved up to make room: 0.34 / 0.11 / -0.12, MODE -0.35, shrink-to-fit label),
+  Y menu in NK ("NEON KNOCKOUT MODE: PUNCH / SHOOT", in the MOVEMENT row, which does nothing in NK), pause panel (MODE under SCENERY), flat OPTIONS ("NEON KNOCKOUT: PUNCH / SHOOT (VR)").
+  localStorage galacticarcade.nkMode, default punch. Kill switch ?noshootmode=1 (always punch, no options).
+- SHOOT (in the headset): the right glove is replaced by the arcade's laser blaster (player.js's pistol model via __gaPlayer.previewItem, cloned once, 0.45 scale) on the right grip;
+  the TRIGGER fires with the five vrtest-v14 fire types (same vrLaser code, colours, sounds, haptics; roomfire.js pooled bolts via spawn(), no pistol / RF.shown needed, not sent to
+  multiplayer). Each bolt = one ray-vs-sphere test against the live targets in nkgame.shootRay() (nearest hit; the bolt's life is cut so it ends at the target); CONTINUOUS tests its beam
+  every frame and burns through every target it touches; CHARGE widens the hit radius with charge. Hits score like on-hand punches (streak, multiplier, power meter): PERFECT when the target
+  is < 0.35 s from you, GREAT < 0.9 s, else GOOD. Misses / duck bars unchanged. No punching in a SHOOT round. Right controller aiming ray shown (fire-type colour) during a SHOOT round.
+- Calories in SHOOT: the CALORIES board is hidden and nothing is counted (score board stays at 43 deg left). Back to PUNCH = board back + counting.
+- Right stick click opens the fire-type hologram in NK SHOOT (also mid-round; trigger doesn't fire while it is open; stick = highlight, A = select; shares galacticarcade.vrFireType).
+  NK has no snap turn (the comfort locomotion is off in NK); the existing smooth turn is already off while the hologram is open. Y-only pause / menu unchanged; B still nothing.
+- PUNCH mode: unchanged except the left-column orb heights.
+- test/nk_v25.js (29 checks).

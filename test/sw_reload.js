@@ -29,8 +29,8 @@ const { open } = require('./lib');
     const S = window.__start || {};
     return {
       loadN: Number(sessionStorage.getItem('gaLoadN') || 0),
-      flag: sessionStorage.getItem('gavrReloaded.galactic-arcade_vrtest-v24'),
-      stale: keys.filter(k => k.indexOf('galactic-arcade_vrtest-') === 0 && k !== 'galactic-arcade_vrtest-v24'),
+      flag: sessionStorage.getItem('gavrReloaded.galactic-arcade_vrtest-v25'),
+      stale: keys.filter(k => k.indexOf('galactic-arcade_vrtest-') === 0 && k !== 'galactic-arcade_vrtest-v25'),
       live: ['galactic-arcade-v233', 'galactic-arcade-v199', 'galactic-arcade-test-v9', 'galactic-arcade_vr-v23'].filter(k => keys.includes(k)),
       updating: document.documentElement.classList.contains('ga-updating'),
       checked: !!(window.__gaUpdate && window.__gaUpdate.checked),
@@ -42,7 +42,7 @@ const { open } = require('./lib');
   });
   console.log('after boot', JSON.stringify(a));
   chk(a.loadN === 2, 'stale cache caused exactly one reload (loadN=' + a.loadN + ')');
-  chk(a.flag === '1', 'session guard gavrReloaded.galactic-arcade_vrtest-v24 is set');
+  chk(a.flag === '1', 'session guard gavrReloaded.galactic-arcade_vrtest-v25 is set');
   chk(a.stale.length === 0, 'old galactic-arcade_vrtest-* caches are gone (' + a.stale.join(',') + ')');
   chk(a.live.length === 4, 'live, test and main-VR (galactic-arcade_vr-v23) caches untouched by the VR head script (' + a.live.join(',') + ')');
   chk(!a.updating && a.checked && !a.reloading, 'start screen is no longer blocked after the reload');
@@ -65,7 +65,7 @@ const { open } = require('./lib');
   await page.waitForTimeout(3000);
   const c = await page.evaluate(async () => ({ keys: await caches.keys(), scope: (await navigator.serviceWorker.getRegistration() || {}).scope || null, active: !!((await navigator.serviceWorker.getRegistration()) || {}).active }));
   console.log('after SW activate', JSON.stringify(c));
-  chk(c.active && c.keys.includes('galactic-arcade_vrtest-v24'), 'VR service worker active with its own cache galactic-arcade_vrtest-v24');
+  chk(c.active && c.keys.includes('galactic-arcade_vrtest-v25'), 'VR service worker active with its own cache galactic-arcade_vrtest-v25');
   chk(['galactic-arcade-v233', 'galactic-arcade-v199', 'galactic-arcade-test-v9', 'galactic-arcade_vr-v23'].every(k => c.keys.includes(k)), 'sw.js activate + delayed SW path left the live / test caches alone');
   chk(errors.filter(e => !/Failed to load|supabase|net::/i.test(e)).length === 0, 'no page errors ' + errors.join(' | '));
   await close();
